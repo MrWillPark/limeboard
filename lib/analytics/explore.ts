@@ -14,7 +14,18 @@ export type ExploreGroupBy = 'model' | 'provider';
 
 export type ExploreChartType = 'line' | 'bar';
 
-export type ExploreRollup = 'day' | 'week';
+export type ExploreRollup = 'minute' | 'hour' | 'day' | 'week';
+
+export const EXPLORE_ROLLUPS: {
+  id: ExploreRollup;
+  label: string;
+  short: string;
+}[] = [
+  { id: 'minute', label: 'Minute', short: 'Min' },
+  { id: 'hour', label: 'Hour', short: 'Hr' },
+  { id: 'day', label: 'Daily', short: 'Day' },
+  { id: 'week', label: 'Weekly', short: 'Week' },
+];
 
 export const EXPLORE_METRICS: { id: ExploreMetric; label: string; short: string }[] = [
   { id: 'spend', label: 'Spend', short: 'USD' },
@@ -56,7 +67,7 @@ export function groupKey(row: ActivityItem, groupBy: ExploreGroupBy): string {
 function rollupDate(date: string, rollup: ExploreRollup): string {
   const day = normalizeDayKey(date);
   if (!day) return date;
-  if (rollup === 'day') return day;
+  if (rollup === 'day' || rollup === 'minute' || rollup === 'hour') return day;
 
   const [year, month, dayNum] = day.split('-').map(Number);
   const d = new Date(Date.UTC(year, month - 1, dayNum));
@@ -228,7 +239,16 @@ export function formatMetricValue(metric: ExploreMetric, value: number): string 
   return String(Math.round(value));
 }
 
-export function formatBucketLabel(bucket: string, _rollup: ExploreRollup): string {
+export function formatBucketLabel(bucket: string, rollup: ExploreRollup): string {
+  if (rollup === 'minute' || rollup === 'hour') {
+    const d = new Date(bucket.includes('T') ? bucket : `${bucket}T00:00:00Z`);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleTimeString(undefined, {
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    }
+  }
   return formatDayKeyLabel(bucket);
 }
 

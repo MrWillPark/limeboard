@@ -2,9 +2,11 @@ import { View } from 'react-native';
 
 import { ExplorePicker } from '@/components/explore/explore-picker';
 import { AppText } from '@/components/ui/app-text';
+import { needsAnalyticsApi } from '@/lib/analytics/analytics-query';
 import {
   EXPLORE_GROUPS,
   EXPLORE_METRICS,
+  EXPLORE_ROLLUPS,
   type ExploreChartType,
   type ExploreGroupBy,
   type ExploreMetric,
@@ -21,10 +23,6 @@ const CHART_TYPES: { id: ExploreChartType; label: string; shortLabel: string }[]
   { id: 'bar', label: 'Stacked bar', shortLabel: 'Stack' },
 ];
 
-const ROLLUPS: { id: ExploreRollup; label: string; shortLabel: string }[] = [
-  { id: 'day', label: 'Daily', shortLabel: 'Day' },
-  { id: 'week', label: 'Weekly', shortLabel: 'Week' },
-];
 
 type Props = {
   timeframe: TimeframeId;
@@ -96,10 +94,10 @@ export function ExploreFilters({
           flex
           dense
           label="Rollup"
-          options={ROLLUPS.map((r) => ({
+          options={EXPLORE_ROLLUPS.map((r) => ({
             id: r.id,
             label: r.label,
-            shortLabel: r.shortLabel,
+            shortLabel: r.short,
           }))}
           value={rollup}
           onChange={(id) => onRollupChange(id as ExploreRollup)}
@@ -118,8 +116,15 @@ export function ExploreFilters({
         />
       </View>
       <AppText variant="caption" numberOfLines={1} style={{ fontSize: 11 }}>
-        {def.windowDescription}
-        {timeframe === 'today' ? ' · live /key' : ''}
+        {needsAnalyticsApi(rollup)
+          ? rollup === 'minute'
+            ? timeframe === 'today'
+              ? `${def.windowDescription} · minute buckets`
+              : 'Last 24h · minute buckets (Analytics API)'
+            : timeframe === 'today'
+              ? `${def.windowDescription} · hour buckets`
+              : 'Last 24h · hour buckets (Analytics API)'
+          : `${def.windowDescription}${timeframe === 'today' ? ' · live /key' : ''}`}
       </AppText>
     </View>
   );

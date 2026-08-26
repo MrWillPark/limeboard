@@ -22,9 +22,17 @@ type RequestOptions = {
   apiKey: string;
   path: string;
   query?: Record<string, string | undefined>;
+  method?: 'GET' | 'POST';
+  body?: unknown;
 };
 
-async function request<T>({ apiKey, path, query }: RequestOptions): Promise<T> {
+async function request<T>({
+  apiKey,
+  path,
+  query,
+  method = 'GET',
+  body,
+}: RequestOptions): Promise<T> {
   const url = new URL(`${BASE_URL}${path}`);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
@@ -33,20 +41,21 @@ async function request<T>({ apiKey, path, query }: RequestOptions): Promise<T> {
   }
 
   const response = await fetch(url.toString(), {
-    method: 'GET',
+    method,
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
       'HTTP-Referer': 'https://limeboard.app',
       'X-Title': 'LimeBoard',
     },
+    body: body != null ? JSON.stringify(body) : undefined,
   });
 
   if (!response.ok) {
     let message = `OpenRouter request failed (${response.status})`;
     try {
-      const body = await response.json();
-      message = body?.error?.message ?? message;
+      const bodyJson = await response.json();
+      message = bodyJson?.error?.message ?? message;
     } catch {
       // ignore parse errors
     }
@@ -104,4 +113,42 @@ export async function listModels(apiKey: string): Promise<ModelPricing[]> {
 
 export async function validateApiKey(apiKey: string): Promise<KeyInfo> {
   return getCurrentKey(apiKey);
+}
+
+export type AnalyticsQueryBody = {
+  metrics: string[];
+  dimensions?: string[];
+  granularity?: 'minute' | 'hour' | 'day' | 'week' | 'month';
+  time_range?: { start: string; end: string };
+  order_by?: { field: string; direction: 'asc' | 'desc' };
+  limit?: number;
+  group_limit?: number;
+};
+
+export type AnalyticsQueryResult = {
+  data: Record<string, string | number | null>[];
+  metadata: {
+    query_time_ms: number;
+    row_count: number;
+    truncated: boolean;
+  };
+  cachedAt?: number;
+  warnings?: string[];
+};
+
+/**
+ * Explore-grade aggregates via POST /analytics/query.
+ * Requires a management API key. Supports minute/hour/day/week/month.
+ */
+export async function queryAnalytics(
+  apiKey: string,
+  body: AnalyticsQueryBody
+): Promise<AnalyticsQueryResult> {
+  const res = await request<{ data: AnalyticsQueryResult }>({
+    apiKey,
+    path: '/analytics/query',
+    method: 'POST',
+    body,
+  });
+  return res.data;
 }

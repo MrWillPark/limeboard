@@ -13,6 +13,11 @@ import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
 import { colors, spacing } from '@/constants/theme';
 import {
+  needsAnalyticsApi,
+  rowsToStackedSeries,
+  rowsToTimeSeries,
+} from '@/lib/analytics/analytics-query';
+import {
   EXPLORE_METRICS,
   aggregateRanked,
   aggregateStackedTimeSeries,
@@ -33,7 +38,12 @@ import {
   type TimeframeId,
 } from '@/lib/analytics/timeframe';
 import { buildTodayTrendSeries, recordTodaySpendSample } from '@/lib/analytics/today-trail';
-import { useActivity, useKeyInfo, useManagedKeys } from '@/hooks/use-openrouter';
+import {
+  useActivity,
+  useAnalyticsSeries,
+  useKeyInfo,
+  useManagedKeys,
+} from '@/hooks/use-openrouter';
 import { useAuth } from '@/providers/auth-provider';
 
 export default function ExploreScreen() {
@@ -47,6 +57,23 @@ export default function ExploreScreen() {
   const [groupBy, setGroupBy] = useState<ExploreGroupBy>('model');
   const [chartType, setChartType] = useState<ExploreChartType>('line');
   const [rollup, setRollup] = useState<ExploreRollup>('day');
+
+  const useAnalytics = needsAnalyticsApi(rollup);
+
+  const lineAnalytics = useAnalyticsSeries({
+    metric,
+    groupBy,
+    rollup,
+    timeframe,
+    withDimension: false,
+  });
+  const stackedAnalytics = useAnalyticsSeries({
+    metric,
+    groupBy,
+    rollup,
+    timeframe,
+    withDimension: true,
+  });
 
   const activity = useMemo(
     () => filterActivityByTimeframe(activityQuery.data ?? [], timeframe),
@@ -73,10 +100,13 @@ export default function ExploreScreen() {
     [activity, metric, groupBy]
   );
 
+  // Session trail only when Today + spend + day/week rollup (no Analytics minute series).
   const todayTrail = useMemo(() => {
+    if (useAnalytics) return null;
     if (timeframe !== 'today' || metric !== 'spend') return null;
     return buildTodayTrendSeries(liveToday?.spend ?? 0);
   }, [
+    useAnalytics,
     timeframe,
     metric,
     liveToday?.spend,
@@ -85,9 +115,10 @@ export default function ExploreScreen() {
   ]);
 
   useEffect(() => {
-    if (timeframe !== 'today') return;
+    if (useAnalytics || timeframe !== 'today') return;
     recordTodaySpendSample(liveToday?.spend ?? 0);
   }, [
+    useAnalytics,
     timeframe,
     liveToday?.spend,
     keyQuery.dataUpdatedAt,
@@ -95,6 +126,13 @@ export default function ExploreScreen() {
   ]);
 
   const timeSeries = useMemo(() => {
+    if (useAnalytics && lineAnalytics.data) {
+      return rowsToTimeSeries(
+        lineAnalytics.data.data,
+        lineAnalytics.data.metricId,
+        lineAnalytics.data.granularity
+      );
+    }
     if (todayTrail) {
       return todayTrail.map((p) => ({
         bucket: p.date,
@@ -102,18 +140,37 @@ export default function ExploreScreen() {
         label: p.label,
       }));
     }
+    if (useAnalytics) return [];
     return aggregateTimeSeries(activity, metric, rollup).map((p) => ({
       ...p,
       label: formatBucketLabel(p.bucket, rollup),
     }));
-  }, [todayTrail, activity, metric, rollup]);
+  }, [useAnalytics, lineAnalytics.data, todayTrail, activity, metric, rollup]);
 
   const stacked = useMemo(() => {
-    if (timeframe === 'today') {
+    if (useAnalytics && stackedAnalytics.data) {
+      const raw = rowsToStackedSeries(
+        stackedAnalytics.data.data,
+        stackedAnalytics.data.metricId,
+        stackedAnalytics.data.dimension,
+        stackedAnalytics.data.granularity,
+        5
+      );
+      return {
+        ...raw,
+        series: raw.series.map((s, i) => ({
+          ...s,
+          color:
+            s.key === '__other__'
+              ? colors.textMuted
+              : colors.chart[i % colors.chart.length],
+        })),
+      };
+    }
+    if (useAnalytics || timeframe === 'today') {
       return {
         buckets: [] as string[],
         series: [] as { key: string; color: string; values: number[] }[],
-        totals: [] as number[],
       };
     }
     const raw = aggregateStackedTimeSeries(activity, metric, groupBy, rollup, 5);
@@ -127,16 +184,19 @@ export default function ExploreScreen() {
             : colors.chart[i % colors.chart.length],
       })),
     };
-  }, [activity, metric, groupBy, rollup, timeframe]);
+  }, [useAnalytics, stackedAnalytics.data, activity, metric, groupBy, rollup, timeframe]);
 
   const metricMeta = EXPLORE_METRICS.find((m) => m.id === metric)!;
   const formatValue = (n: number) => formatMetricValue(metric, n);
   const seriesTotal = useMemo(() => {
+    if (useAnalytics) {
+      return timeSeries.reduce((s, p) => s + p.value, 0);
+    }
     if (timeframe === 'today' && metric === 'spend') {
       return liveToday?.spend ?? 0;
     }
     return timeSeries.reduce((s, p) => s + p.value, 0);
-  }, [timeframe, metric, liveToday?.spend, timeSeries]);
+  }, [useAnalytics, timeframe, metric, liveToday?.spend, timeSeries]);
 
   const donutSlices = ranked.slice(0, 5).map((row, i) => ({
     value: row.value,
@@ -151,7 +211,25 @@ export default function ExploreScreen() {
   }));
 
   const chartLabels = timeSeries.map((p) => p.label);
-  const empty = activity.length === 0 && timeframe !== 'today';
+  const empty =
+    !useAnalytics && activity.length === 0 && timeframe !== 'today';
+  const analyticsNote =
+    lineAnalytics.data?.rangeNote ?? stackedAnalytics.data?.rangeNote ?? null;
+
+  const refreshing =
+    activityQuery.isFetching ||
+    lineAnalytics.isFetching ||
+    stackedAnalytics.isFetching;
+
+  const onRefresh = () => {
+    activityQuery.refetch();
+    if (useAnalytics) {
+      lineAnalytics.refetch();
+      stackedAnalytics.refetch();
+    }
+    keyQuery.refetch();
+    keysQuery.refetch();
+  };
 
   const filters = (
     <ExploreFilters
@@ -192,13 +270,18 @@ export default function ExploreScreen() {
         <Panel style={{ gap: spacing.sm }}>
           <AppText variant="title">Management key required</AppText>
           <AppText>
-            Explore mirrors OpenRouter Activity — metric, group-by, and time
-            rollups from GET /api/v1/activity (management key).
+            Explore needs a management key for Activity and Analytics (including
+            minute rollups).
           </AppText>
         </Panel>
       </ScrollView>
     );
   }
+
+  const chartLoading = useAnalytics && (lineAnalytics.isLoading || stackedAnalytics.isLoading);
+  const chartError = useAnalytics
+    ? ((lineAnalytics.error ?? stackedAnalytics.error) as Error | null)
+    : null;
 
   return (
     <ScrollView
@@ -207,15 +290,15 @@ export default function ExploreScreen() {
       contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 48 }}
       refreshControl={
         <RefreshControl
-          refreshing={activityQuery.isFetching}
-          onRefresh={() => activityQuery.refetch()}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           tintColor={colors.lime}
         />
       }
     >
-      {activityQuery.isLoading ? (
+      {activityQuery.isLoading && !useAnalytics ? (
         <ActivityIndicator color={colors.lime} />
-      ) : activityQuery.isError ? (
+      ) : activityQuery.isError && !useAnalytics ? (
         <Panel>
           <AppText color={colors.red} selectable>
             {(activityQuery.error as Error).message}
@@ -234,7 +317,7 @@ export default function ExploreScreen() {
               <ExploreOverview
                 totals={overview}
                 timeframe={timeframe}
-                liveSpend={timeframe === 'today'}
+                liveSpend={timeframe === 'today' && !useAnalytics}
               />
 
               <Panel style={{ gap: spacing.sm, padding: spacing.md }}>
@@ -253,25 +336,24 @@ export default function ExploreScreen() {
                   </AppText>
                 </View>
 
-                {timeframe === 'today' && metric !== 'spend' ? (
-                  <AppText variant="caption">
-                    Today only has live spend from /key. Switch metric to Spend, or pick
-                    7d / 30d for activity breakdowns.
+                {analyticsNote ? (
+                  <AppText variant="caption">{analyticsNote}</AppText>
+                ) : null}
+
+                {chartLoading ? (
+                  <ActivityIndicator color={colors.lime} />
+                ) : chartError ? (
+                  <AppText color={colors.red} selectable>
+                    {chartError.message}
                   </AppText>
-                ) : chartType === 'line' || timeframe === 'today' ? (
-                  <>
-                    <LineChart
-                      values={timeSeries.map((p) => p.value)}
-                      labels={chartLabels}
-                      height={132}
-                    />
-                    {timeframe === 'today' ? (
-                      <AppText variant="caption">
-                        Midnight → now · trail grows as you refresh (live /key)
-                      </AppText>
-                    ) : null}
-                  </>
-                ) : (
+                ) : !useAnalytics &&
+                  timeframe === 'today' &&
+                  metric !== 'spend' ? (
+                  <AppText variant="caption">
+                    Today only has live spend from /key unless you pick Minute or Hour
+                    rollup (Analytics API).
+                  </AppText>
+                ) : chartType === 'bar' && stacked.buckets.length > 0 ? (
                   <>
                     <StackedBarChart
                       buckets={stacked.buckets}
@@ -311,6 +393,29 @@ export default function ExploreScreen() {
                         </View>
                       ))}
                     </View>
+                    {useAnalytics ? (
+                      <AppText variant="caption">
+                        {rollup === 'minute' ? 'Minute' : 'Hour'} buckets · Analytics API
+                      </AppText>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <LineChart
+                      values={timeSeries.map((p) => p.value)}
+                      labels={chartLabels}
+                      height={132}
+                      showDots={!useAnalytics || timeSeries.length <= 48}
+                    />
+                    {useAnalytics ? (
+                      <AppText variant="caption">
+                        {rollup === 'minute' ? 'Minute' : 'Hour'} buckets · Analytics API
+                      </AppText>
+                    ) : timeframe === 'today' ? (
+                      <AppText variant="caption">
+                        Midnight → now · trail grows as you refresh (live /key)
+                      </AppText>
+                    ) : null}
                   </>
                 )}
               </Panel>
@@ -319,39 +424,63 @@ export default function ExploreScreen() {
                 <AppText variant="title" style={{ fontSize: 16 }}>
                   {metricMeta.label} by {groupBy}
                 </AppText>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.md,
-                  }}
-                >
-                  <Donut slices={donutSlices} size={96} strokeWidth={14} />
-                  <View style={{ flex: 1, gap: 6 }}>
-                    {ranked.slice(0, 4).map((row, i) => (
-                      <View
-                        key={row.key}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
-                      >
-                        <View
-                          style={{
-                            width: 7,
-                            height: 7,
-                            borderRadius: 999,
-                            backgroundColor: colors.chart[i % colors.chart.length],
-                          }}
-                        />
-                        <AppText variant="caption" numberOfLines={1} style={{ flex: 1, color: colors.text }}>
-                          {groupBy === 'model' ? shortModelName(row.label) : row.label}
-                        </AppText>
-                        <AppText variant="mono" selectable style={{ fontSize: 11, color: colors.limeSoft }}>
-                          {formatValue(row.value)}
-                        </AppText>
+                {ranked.length === 0 ? (
+                  <AppText variant="caption">
+                    Model breakdown needs completed Activity days — try 7d / 30d, or use
+                    stacked chart with Minute rollup.
+                  </AppText>
+                ) : (
+                  <>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: spacing.md,
+                      }}
+                    >
+                      <Donut slices={donutSlices} size={96} strokeWidth={14} />
+                      <View style={{ flex: 1, gap: 6 }}>
+                        {ranked.slice(0, 4).map((row, i) => (
+                          <View
+                            key={row.key}
+                            style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                          >
+                            <View
+                              style={{
+                                width: 7,
+                                height: 7,
+                                borderRadius: 999,
+                                backgroundColor: colors.chart[i % colors.chart.length],
+                              }}
+                            />
+                            <AppText
+                              variant="caption"
+                              numberOfLines={1}
+                              style={{ flex: 1, color: colors.text }}
+                            >
+                              {groupBy === 'model'
+                                ? shortModelName(row.label)
+                                : row.label}
+                            </AppText>
+                            <AppText
+                              variant="mono"
+                              selectable
+                              style={{ fontSize: 11, color: colors.limeSoft }}
+                            >
+                              {formatValue(row.value)}
+                            </AppText>
+                          </View>
+                        ))}
                       </View>
-                    ))}
-                  </View>
-                </View>
-                <HorizontalBarChart rows={barRows} formatValue={formatValue} maxRows={6} compact />
+                    </View>
+                    <HorizontalBarChart
+                      rows={barRows}
+                      formatValue={formatValue}
+                      maxRows={6}
+                      compact
+                    />
+                  </>
+                )}
               </Panel>
             </>
           )}
