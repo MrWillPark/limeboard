@@ -371,7 +371,15 @@ export type AnalyticsOverviewTotals = {
 export function rowsToOverviewTotals(
   rows: Record<string, string | number | null>[]
 ): AnalyticsOverviewTotals {
-  return rows.reduce(
+  const initial: AnalyticsOverviewTotals = {
+    spend: 0,
+    requests: 0,
+    promptTokens: 0,
+    completionTokens: 0,
+    reasoningTokens: 0,
+    byokSpend: 0,
+  };
+  return rows.reduce<AnalyticsOverviewTotals>(
     (acc, row) => ({
       spend: acc.spend + parseAnalyticsNumber(row.total_usage),
       requests: acc.requests + parseAnalyticsNumber(row.request_count),
@@ -382,13 +390,6 @@ export function rowsToOverviewTotals(
         acc.reasoningTokens + parseAnalyticsNumber(row.tokens_reasoning),
       byokSpend: acc.byokSpend + parseAnalyticsNumber(row.byok_usage),
     }),
-    {
-      spend: 0,
-      requests: 0,
-      promptTokens: 0,
-      completionTokens: 0,
-      reasoningTokens: 0,
-      byokSpend: 0,
-    }
+    initial
   );
 }

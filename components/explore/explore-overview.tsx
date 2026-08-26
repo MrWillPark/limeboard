@@ -9,36 +9,20 @@ import { timeframeLabel, type TimeframeId } from '@/lib/analytics/timeframe';
 type Props = {
   totals: OverviewTotals;
   timeframe: TimeframeId;
-  liveSpend?: boolean;
-  analytics?: boolean;
-  /** e.g. Σ keys · usage_weekly — matches Keys screen */
-  fleetSpend?: string;
+  /** Fixed timeframe total source — independent of chart rollup */
+  sourceLabel?: string | null;
 };
 
-export function ExploreOverview({
-  totals,
-  timeframe,
-  liveSpend,
-  analytics,
-  fleetSpend,
-}: Props) {
+export function ExploreOverview({ totals, timeframe, sourceLabel }: Props) {
   const totalTokens = totals.promptTokens + totals.completionTokens;
 
   return (
     <View style={{ gap: spacing.xs }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <AppText variant="label">Overview · {timeframeLabel(timeframe)}</AppText>
-        {liveSpend ? (
-          <AppText variant="caption" color={colors.limeSoft}>
-            Live · /key
-          </AppText>
-        ) : fleetSpend ? (
+        {sourceLabel ? (
           <AppText variant="caption" color={colors.limeSoft} numberOfLines={1}>
-            {fleetSpend}
-          </AppText>
-        ) : analytics ? (
-          <AppText variant="caption" color={colors.limeSoft}>
-            Analytics · matches chart
+            {sourceLabel}
           </AppText>
         ) : null}
       </View>

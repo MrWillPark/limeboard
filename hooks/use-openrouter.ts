@@ -128,28 +128,14 @@ export function useAnalyticsSeries({
   });
 }
 
-/** Aggregate (no granularity) for Overview KPIs in the same Analytics window. */
-export function useAnalyticsOverview(
-  timeframe: TimeframeId,
-  rollup: ExploreRollup,
-  enabledExtra = false
-) {
+/** Aggregate Overview for ranges without key counters (currently 3h only). */
+export function useAnalyticsOverview(enabled: boolean) {
   const { apiKey, meta } = useAuth();
-  const useWindow = needsAnalyticsApi(rollup) || enabledExtra;
-  const granularity = analyticsGranularity(rollup) ?? 'hour';
 
   return useQuery({
-    queryKey: ['openrouter', 'analytics', 'overview', apiKey, timeframe, rollup],
+    queryKey: ['openrouter', 'analytics', 'overview', apiKey, '3h'],
     queryFn: async () => {
-      const range = analyticsTimeRange(
-        timeframe,
-        needsAnalyticsApi(rollup) ? granularity : 'hour'
-      );
-      // For 3h with day rollup still want last-3h overview when exploring that range
-      const overviewRange =
-        timeframe === '3h'
-          ? analyticsTimeRange('3h', 'minute')
-          : range;
+      const overviewRange = analyticsTimeRange('3h', 'minute');
 
       const result = await queryAnalytics(apiKey!, {
         metrics: [
@@ -163,7 +149,6 @@ export function useAnalyticsOverview(
       });
 
       const totals = rowsToOverviewTotals(result.data);
-      // Optional extras — ignore failures by leaving at 0 if columns absent
       try {
         const extra = await queryAnalytics(apiKey!, {
           metrics: ['tokens_reasoning', 'byok_usage'],
@@ -174,7 +159,7 @@ export function useAnalyticsOverview(
         totals.reasoningTokens = more.reasoningTokens;
         totals.byokSpend = more.byokSpend;
       } catch {
-        // optional metrics may be unavailable on some accounts
+        // optional metrics may be unavailable
       }
 
       return {
@@ -184,7 +169,7 @@ export function useAnalyticsOverview(
         rangeEnd: overviewRange.end,
       };
     },
-    enabled: Boolean(apiKey) && Boolean(meta?.isManagementKey) && useWindow,
+    enabled: Boolean(apiKey) && Boolean(meta?.isManagementKey) && enabled,
     retry: false,
     staleTime: 30_000,
   });

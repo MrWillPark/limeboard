@@ -80,11 +80,7 @@ export default function ExploreScreen() {
     timeframe,
     withDimension: true,
   });
-  const overviewAnalytics = useAnalyticsOverview(
-    timeframe,
-    rollup,
-    timeframe === '3h'
-  );
+  const overviewAnalytics = useAnalyticsOverview(timeframe === '3h');
 
   const activity = useMemo(
     () => filterActivityByTimeframe(activityQuery.data ?? [], timeframe),
@@ -231,71 +227,48 @@ export default function ExploreScreen() {
   }, [todayTrail, liveToday?.spend, timeSeries]);
 
   /**
-   * Spend KPI authority:
-   * - 3h / minute-hour Analytics → chart series (intraday)
-   * - today / 7d / 30d → Σ Keys counters (matches Keys screen Week/Today/Month)
-   * - else → activity series sum
+   * Overview spend = timeframe total only (never depends on rollup).
+   * today → Σ usage_daily · 7d → Σ usage_weekly · 30d → Σ usage_monthly · 3h → Analytics
    */
-  const spendHeadline = useMemo(() => {
-    if (useAnalytics && (timeframe === '3h' || rollup === 'minute' || rollup === 'hour')) {
-      return seriesTotal;
+  const overview = useMemo(() => {
+    const base = computeOverview(activity);
+
+    if (timeframe === '3h' && overviewAnalytics.data?.totals) {
+      return {
+        spend: overviewAnalytics.data.totals.spend,
+        byokSpend: overviewAnalytics.data.totals.byokSpend,
+        requests: overviewAnalytics.data.totals.requests,
+        promptTokens: overviewAnalytics.data.totals.promptTokens,
+        completionTokens: overviewAnalytics.data.totals.completionTokens,
+        reasoningTokens: overviewAnalytics.data.totals.reasoningTokens,
+      };
     }
+
     if (
       fleetSpend.source !== 'none' &&
       (timeframe === 'today' || timeframe === '7d' || timeframe === '30d')
     ) {
-      return fleetSpend.spend;
-    }
-    if (todayTrail) return liveToday?.spend ?? seriesTotal;
-    return seriesTotal;
-  }, [
-    useAnalytics,
-    timeframe,
-    rollup,
-    seriesTotal,
-    fleetSpend,
-    todayTrail,
-    liveToday?.spend,
-  ]);
-
-  const overview = useMemo(() => {
-    const base = computeOverview(activity);
-    const fromAnalytics = overviewAnalytics.data?.totals;
-
-    if (useAnalytics && fromAnalytics && (timeframe === '3h' || rollup === 'minute' || rollup === 'hour')) {
-      const totals = {
-        spend: fromAnalytics.spend,
-        byokSpend: fromAnalytics.byokSpend,
-        requests: fromAnalytics.requests,
-        promptTokens: fromAnalytics.promptTokens,
-        completionTokens: fromAnalytics.completionTokens,
-        reasoningTokens: fromAnalytics.reasoningTokens,
-      };
-      if (metric === 'spend') totals.spend = spendHeadline;
-      if (metric === 'requests') totals.requests = seriesTotal;
-      if (metric === 'prompt_tokens') totals.promptTokens = seriesTotal;
-      if (metric === 'completion_tokens') totals.completionTokens = seriesTotal;
-      if (metric === 'reasoning_tokens') totals.reasoningTokens = seriesTotal;
-      if (metric === 'byok_spend') totals.byokSpend = seriesTotal;
-      return totals;
+      return { ...base, spend: fleetSpend.spend };
     }
 
-    return {
-      ...base,
-      spend: metric === 'spend' || timeframe === 'today' || timeframe === '7d' || timeframe === '30d'
-        ? spendHeadline
-        : base.spend,
-    };
+    if (liveToday) {
+      return { ...base, spend: liveToday.spend };
+    }
+
+    return base;
   }, [
     activity,
-    overviewAnalytics.data?.totals,
-    useAnalytics,
     timeframe,
-    rollup,
-    metric,
-    spendHeadline,
-    seriesTotal,
+    overviewAnalytics.data?.totals,
+    fleetSpend,
+    liveToday,
   ]);
+
+  const overviewSpendLabel = useMemo(() => {
+    if (timeframe === '3h') return 'Last 3h · Analytics total';
+    if (fleetSpend.source === 'none') return null;
+    return fleetSpendLabel(timeframe);
+  }, [timeframe, fleetSpend.source]);
 
   const donutSlices = ranked.slice(0, 5).map((row, i) => ({
     value: row.value,
@@ -423,18 +396,7 @@ export default function ExploreScreen() {
               <ExploreOverview
                 totals={overview}
                 timeframe={timeframe}
-                liveSpend={Boolean(liveToday)}
-                fleetSpend={
-                  fleetSpend.source !== 'none' &&
-                  !useAnalytics &&
-                  (timeframe === 'today' || timeframe === '7d' || timeframe === '30d')
-                    ? fleetSpendLabel(timeframe) ?? undefined
-                    : undefined
-                }
-                analytics={
-                  Boolean(overviewAnalytics.data) ||
-                  (useAnalytics && (timeframe === '3h' || rollup === 'minute' || rollup === 'hour'))
-                }
+                sourceLabel={overviewSpendLabel}
               />
 
               <Panel style={{ gap: spacing.sm, padding: spacing.md }}>
@@ -449,19 +411,19 @@ export default function ExploreScreen() {
                     {metricMeta.label} over time
                   </AppText>
                   <AppText variant="mono" selectable color={colors.lime} style={{ fontSize: 13 }}>
-                    {formatValue(metric === 'spend' ? spendHeadline : seriesTotal)}
+                    {formatValue(seriesTotal)}
                   </AppText>
                 </View>
 
                 {metric === 'spend' &&
-                fleetSpend.source !== 'none' &&
-                !useAnalytics &&
-                (timeframe === '7d' || timeframe === '30d' || timeframe === 'today') ? (
+                Math.abs(overview.spend - seriesTotal) > 0.005 ? (
                   <AppText variant="caption">
-                    {fleetSpendLabel(timeframe)} · matches Keys screen totals
-                    {Math.abs(spendHeadline - seriesTotal) > 0.005
-                      ? ` · activity bars sum ${formatValue(seriesTotal)}`
-                      : ''}
+                    Chart sum {formatValue(seriesTotal)} · Overview {formatValue(overview.spend)}
+                    {rollup === 'minute'
+                      ? ' (minute window is ≤3h)'
+                      : rollup === 'hour'
+                        ? ' (hour series ≠ Keys weekly counter)'
+                        : ' (activity days ≠ Keys rolling counter)'}
                   </AppText>
                 ) : null}
 
