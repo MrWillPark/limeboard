@@ -9,6 +9,7 @@ import {
 } from '@/components/charts/charts';
 import { ExploreOverview } from '@/components/explore/explore-overview';
 import { ExplorePicker } from '@/components/explore/explore-picker';
+import { TimeframeCaption } from '@/components/shared/timeframe-caption';
 import { TimeframePicker } from '@/components/shared/timeframe-picker';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
@@ -30,10 +31,11 @@ import {
 } from '@/lib/analytics/explore';
 import {
   filterActivityByTimeframe,
+  computeLiveTodaySpend,
   timeframeLabel,
   type TimeframeId,
 } from '@/lib/analytics/timeframe';
-import { useActivity } from '@/hooks/use-openrouter';
+import { useActivity, useKeyInfo, useManagedKeys } from '@/hooks/use-openrouter';
 import { useAuth } from '@/providers/auth-provider';
 
 const CHART_TYPES: { id: ExploreChartType; label: string }[] = [
@@ -49,6 +51,8 @@ const ROLLUPS: { id: ExploreRollup; label: string }[] = [
 export default function ExploreScreen() {
   const { isConnected, meta } = useAuth();
   const activityQuery = useActivity();
+  const keyQuery = useKeyInfo();
+  const keysQuery = useManagedKeys();
 
   const [timeframe, setTimeframe] = useState<TimeframeId>('30d');
   const [metric, setMetric] = useState<ExploreMetric>('spend');
@@ -61,7 +65,16 @@ export default function ExploreScreen() {
     [activityQuery.data, timeframe]
   );
 
-  const overview = useMemo(() => computeOverview(activity), [activity]);
+  const overview = useMemo(() => {
+    const base = computeOverview(activity);
+    if (timeframe !== 'today') return base;
+    const live = computeLiveTodaySpend(
+      keyQuery.data,
+      keysQuery.data,
+      Boolean(meta?.isManagementKey)
+    );
+    return { ...base, spend: live.spend };
+  }, [activity, timeframe, keyQuery.data, keysQuery.data, meta?.isManagementKey]);
   const ranked = useMemo(
     () => aggregateRanked(activity, metric, groupBy),
     [activity, metric, groupBy]
@@ -162,19 +175,20 @@ export default function ExploreScreen() {
             {(activityQuery.error as Error).message}
           </AppText>
         </Panel>
-      ) : activity.length === 0 ? (
+      ) : activity.length === 0 && timeframe !== 'today' ? (
         <Panel>
           <AppText>No activity in {timeframeLabel(timeframe).toLowerCase()}.</AppText>
         </Panel>
       ) : (
         <>
-          <ExploreOverview totals={overview} timeframe={timeframe} />
+          <ExploreOverview totals={overview} timeframe={timeframe} liveSpend={timeframe === 'today'} />
 
           <Panel style={{ gap: spacing.lg }}>
             <TimeframePicker value={timeframe} onChange={setTimeframe} />
-            <AppText variant="caption">
-              Showing {timeframeLabel(timeframe)} · activity API max ~30 UTC days
-            </AppText>
+            <TimeframeCaption
+              timeframe={timeframe}
+              dataSource={timeframe === 'today' ? 'live_key' : undefined}
+            />
             <ExplorePicker
               label="Metric"
               options={EXPLORE_METRICS.map((m) => ({ id: m.id, label: m.label }))}

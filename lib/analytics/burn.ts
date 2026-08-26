@@ -1,7 +1,11 @@
 import type { ActivityItem, CreditsInfo, KeyInfo, ManagedKey } from '@/lib/openrouter/types';
 
 import {
+  computeLiveTodaySpend,
   filterActivityByTimeframe,
+  getTimeframeDefinition,
+  localDateString,
+  localHoursElapsedToday,
   periodDayCount,
   type TimeframeId,
 } from '@/lib/analytics/timeframe';
@@ -17,7 +21,7 @@ export type BurnSnapshot = {
   sessionUsageDaily: number;
   sessionUsageWeekly: number;
   sessionUsageMonthly: number;
-  /** Account-wide spend from activity in selected window */
+  /** Account-wide spend in selected window */
   periodSpend: number;
   periodRequests: number;
   periodPromptTokens: number;
@@ -26,6 +30,8 @@ export type BurnSnapshot = {
   projectedZeroDate: Date | null;
   daysRemaining: number | null;
   runwayLabel: string;
+  periodDataSource: 'activity' | 'live_key';
+  timeframeNote: string;
 };
 
 export function computeAccountBalance(credits: CreditsInfo | undefined): {
@@ -47,15 +53,18 @@ export function computeBurn(
   key: KeyInfo | undefined,
   credits: CreditsInfo | undefined,
   activity: ActivityItem[],
-  timeframe: TimeframeId = '30d'
+  timeframe: TimeframeId = '30d',
+  options?: { fleetKeys?: ManagedKey[]; isManagementKey?: boolean }
 ): BurnSnapshot {
   const account = computeAccountBalance(credits);
   const windowActivity = filterActivityByTimeframe(activity, timeframe);
+  const tf = getTimeframeDefinition(timeframe);
 
   let periodSpend = 0;
   let periodRequests = 0;
   let periodPromptTokens = 0;
   let periodCompletionTokens = 0;
+  let periodDataSource: BurnSnapshot['periodDataSource'] = 'activity';
 
   for (const row of windowActivity) {
     periodSpend += row.usage;
@@ -64,14 +73,31 @@ export function computeBurn(
     periodCompletionTokens += row.completion_tokens;
   }
 
-  const days = periodDayCount(timeframe, activity);
-  const avgDailySpend = days > 0 ? periodSpend / days : 0;
+  if (timeframe === 'today') {
+    const live = computeLiveTodaySpend(
+      key,
+      options?.fleetKeys,
+      Boolean(options?.isManagementKey)
+    );
+    periodSpend = live.spend;
+    periodDataSource = 'live_key';
+    // Token/request splits aren't live on /key — keep any same-day activity rows if present.
+  }
 
-  // Prefer activity-derived burn for runway when we have history
+  const days = periodDayCount(timeframe, activity);
+  let avgDailySpend =
+    timeframe === 'today'
+      ? periodSpend
+      : days > 0
+        ? periodSpend / days
+        : 0;
+
   const velocity =
-    windowActivity.length > 0 && avgDailySpend > 0
-      ? avgDailySpend
-      : (key?.usage_daily ?? 0);
+    timeframe === 'today' && periodSpend > 0
+      ? (periodSpend / localHoursElapsedToday()) * 24
+      : windowActivity.length > 0 && avgDailySpend > 0
+        ? avgDailySpend
+        : (key?.usage_daily ?? 0);
 
   let projectedZeroDate: Date | null = null;
   let daysRemaining: number | null = null;
@@ -112,6 +138,8 @@ export function computeBurn(
     projectedZeroDate,
     daysRemaining,
     runwayLabel,
+    periodDataSource,
+    timeframeNote: tf.dataNote,
   };
 }
 
@@ -167,6 +195,17 @@ export function dailySpendSeries(
   return [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, value]) => ({ date, value }));
+}
+
+/** Recent completed days plus live today for sparklines / trend. */
+export function todaySpendSeriesWithLive(
+  activity: ActivityItem[],
+  liveTodaySpend: number
+): { date: string; value: number }[] {
+  const history = dailySpendSeries(filterActivityByTimeframe(activity, '7d')).filter(
+    (p) => p.date !== localDateString()
+  );
+  return [...history.slice(-6), { date: localDateString(), value: liveTodaySpend }];
 }
 
 export type FleetSnapshot = {

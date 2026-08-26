@@ -1,6 +1,12 @@
-import type { ActivityItem } from '@/lib/openrouter/types';
+import type { ActivityItem, KeyInfo, ManagedKey } from '@/lib/openrouter/types';
 
-/** Activity API covers the last ~30 completed UTC days (daily rows). */
+/**
+ * Timeframe windows use the device local calendar unless noted.
+ *
+ * OpenRouter GET /activity returns daily rows keyed by UTC date and only
+ * includes **completed** UTC days — the in-progress calendar day is absent.
+ * "Today" spend therefore comes from live GET /key (usage_daily), not activity.
+ */
 export type TimeframeId = 'today' | '7d' | '30d';
 
 export const TIMEFRAMES: { id: TimeframeId; label: string; short: string }[] = [
@@ -9,37 +15,138 @@ export const TIMEFRAMES: { id: TimeframeId; label: string; short: string }[] = [
   { id: '30d', label: '30 days', short: '30d' },
 ];
 
-function utcToday(): string {
-  return new Date().toISOString().slice(0, 10);
+/** YYYY-MM-DD in the device local timezone. */
+export function localDateString(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
-function daysAgoUtc(n: number): string {
+export function localDaysAgo(n: number): string {
   const d = new Date();
-  d.setUTCDate(d.getUTCDate() - n);
-  return d.toISOString().slice(0, 10);
+  d.setDate(d.getDate() - n);
+  return localDateString(d);
 }
 
-export function filterActivityByTimeframe(
-  activity: ActivityItem[],
-  timeframe: TimeframeId
-): ActivityItem[] {
-  if (timeframe === '30d') return activity;
+export function localTimeLabel(date = new Date()): string {
+  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
 
-  const end = utcToday();
-  const start = timeframe === 'today' ? end : daysAgoUtc(timeframe === '7d' ? 6 : 29);
+export type TimeframeDefinition = {
+  id: TimeframeId;
+  label: string;
+  /** e.g. local midnight → now on this device */
+  windowDescription: string;
+  /** Whether GET /activity alone is sufficient for spend charts */
+  activityCoversWindow: boolean;
+  dataNote: string;
+};
 
-  return activity.filter((row) => row.date >= start && row.date <= end);
+export function getTimeframeDefinition(timeframe: TimeframeId): TimeframeDefinition {
+  const now = new Date();
+  const dateLabel = now.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+  const timeLabel = localTimeLabel(now);
+
+  if (timeframe === 'today') {
+    return {
+      id: 'today',
+      label: 'Today',
+      windowDescription: `${dateLabel}, 12:00 AM – ${timeLabel} (device local)`,
+      activityCoversWindow: false,
+      dataNote:
+        'Spend is live from /key usage_daily. Activity charts omit the in-progress day (API is daily UTC buckets only).',
+    };
+  }
+
+  if (timeframe === '7d') {
+    const start = new Date();
+    start.setDate(start.getDate() - 6);
+    return {
+      id: '7d',
+      label: '7 days',
+      windowDescription: `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${dateLabel} (device local dates)`,
+      activityCoversWindow: true,
+      dataNote:
+        'Matched to activity row dates (UTC day buckets). Today’s live spend may differ slightly from activity until the UTC day closes.',
+    };
+  }
+
+  const start = new Date();
+  start.setDate(start.getDate() - 29);
+  return {
+    id: '30d',
+    label: '30 days',
+    windowDescription: `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${dateLabel} (device local dates, API max ~30d)`,
+    activityCoversWindow: true,
+    dataNote:
+      'Activity API returns at most ~30 completed UTC days. Rows are daily totals, not minute-level.',
+  };
 }
 
 export function timeframeLabel(timeframe: TimeframeId): string {
   return TIMEFRAMES.find((t) => t.id === timeframe)?.label ?? '30 days';
 }
 
+/**
+ * Filter activity rows to the local-calendar window.
+ * Note: each row’s `date` is a UTC day label from OpenRouter — we align by
+ * string comparison to local YYYY-MM-DD, which is approximate near timezones.
+ */
+export function filterActivityByTimeframe(
+  activity: ActivityItem[],
+  timeframe: TimeframeId
+): ActivityItem[] {
+  if (timeframe === '30d') {
+    const start = localDaysAgo(29);
+    const end = localDateString();
+    return activity.filter((row) => row.date >= start && row.date <= end);
+  }
+
+  if (timeframe === '7d') {
+    const start = localDaysAgo(6);
+    const end = localDateString();
+    return activity.filter((row) => row.date >= start && row.date <= end);
+  }
+
+  // Today: activity rarely includes the in-progress day; keep any row tagged local today.
+  const today = localDateString();
+  return activity.filter((row) => row.date === today);
+}
+
 export function periodDayCount(timeframe: TimeframeId, activity: ActivityItem[]): number {
+  if (timeframe === 'today') return 1;
+
   const filtered = filterActivityByTimeframe(activity, timeframe);
   const dates = new Set(filtered.map((r) => r.date));
   if (dates.size > 0) return dates.size;
-  if (timeframe === 'today') return 1;
   if (timeframe === '7d') return 7;
   return 30;
+}
+
+/** Live spend for the current OpenRouter UTC day via /key or fleet keys. */
+export function computeLiveTodaySpend(
+  key: KeyInfo | undefined,
+  fleetKeys: ManagedKey[] | undefined,
+  isManagementKey: boolean
+): { spend: number; source: 'fleet' | 'session_key' | 'none' } {
+  if (isManagementKey && fleetKeys && fleetKeys.length > 0) {
+    return {
+      spend: fleetKeys.reduce((sum, k) => sum + k.usage_daily, 0),
+      source: 'fleet',
+    };
+  }
+  if (key != null) {
+    return { spend: key.usage_daily, source: 'session_key' };
+  }
+  return { spend: 0, source: 'none' };
+}
+
+export function localHoursElapsedToday(): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max((now.getTime() - start.getTime()) / 3_600_000, 1 / 60);
 }

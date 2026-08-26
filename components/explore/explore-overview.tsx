@@ -11,14 +11,20 @@ import { timeframeLabel, type TimeframeId } from '@/lib/analytics/timeframe';
 type Props = {
   totals: OverviewTotals;
   timeframe: TimeframeId;
+  liveSpend?: boolean;
 };
 
-export function ExploreOverview({ totals, timeframe }: Props) {
+export function ExploreOverview({ totals, timeframe, liveSpend }: Props) {
   return (
     <View style={{ gap: spacing.sm }}>
       <AppText variant="label">Overview · {timeframeLabel(timeframe)}</AppText>
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-        <OverviewCard label="Spend" value={formatUsd(totals.spend)} accent />
+        <OverviewCard
+          label="Spend"
+          value={formatUsd(totals.spend)}
+          accent
+          hint={liveSpend ? 'Live · /key' : undefined}
+        />
         <OverviewCard label="Requests" value={formatTokens(totals.requests)} />
         <OverviewCard
           label="Tokens"
@@ -46,11 +52,13 @@ function OverviewCard({
   value,
   accent,
   compact,
+  hint,
 }: {
   label: string;
   value: string;
   accent?: boolean;
   compact?: boolean;
+  hint?: string;
 }) {
   return (
     <Panel
@@ -70,6 +78,7 @@ function OverviewCard({
       >
         {value}
       </AppText>
+      {hint ? <AppText variant="caption">{hint}</AppText> : null}
     </Panel>
   );
 }

@@ -17,6 +17,7 @@ import {
 import { ConnectKeyCard } from '@/components/cockpit/connect-key-card';
 import { SpendTrendChart } from '@/components/cockpit/spend-trend-chart';
 import { TopModelsPanel } from '@/components/cockpit/top-models-panel';
+import { TimeframeCaption } from '@/components/shared/timeframe-caption';
 import { TimeframePicker } from '@/components/shared/timeframe-picker';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
@@ -26,6 +27,7 @@ import {
   computeBurn,
   computeFleetSnapshot,
   dailySpendSeries,
+  todaySpendSeriesWithLive,
 } from '@/lib/analytics/burn';
 import {
   filterActivityByTimeframe,
@@ -55,14 +57,20 @@ export default function CockpitScreen() {
   );
 
   const burn = useMemo(
-    () => computeBurn(keyQuery.data, creditsQuery.data, activity, timeframe),
-    [keyQuery.data, creditsQuery.data, activity, timeframe]
+    () =>
+      computeBurn(keyQuery.data, creditsQuery.data, activity, timeframe, {
+        fleetKeys: keysQuery.data,
+        isManagementKey: meta?.isManagementKey,
+      }),
+    [keyQuery.data, creditsQuery.data, activity, timeframe, keysQuery.data, meta?.isManagementKey]
   );
 
-  const spendSeries = useMemo(
-    () => dailySpendSeries(windowActivity),
-    [windowActivity]
-  );
+  const spendSeries = useMemo(() => {
+    if (timeframe === 'today') {
+      return todaySpendSeriesWithLive(activity, burn.periodSpend);
+    }
+    return dailySpendSeries(windowActivity);
+  }, [timeframe, activity, burn.periodSpend, windowActivity]);
 
   const topModels = useMemo(
     () => aggregateByModel(windowActivity),
@@ -146,6 +154,7 @@ export default function CockpitScreen() {
           )}
 
           <TimeframePicker value={timeframe} onChange={setTimeframe} />
+          <TimeframeCaption timeframe={timeframe} dataSource={burn.periodDataSource} />
 
           <BalanceHero
             burn={burn}
@@ -161,6 +170,7 @@ export default function CockpitScreen() {
                 series={spendSeries}
                 timeframe={timeframe}
                 total={burn.periodSpend}
+                dataSource={burn.periodDataSource}
               />
               <TokenBreakdownPanel burn={burn} timeframe={timeframe} />
               <TopModelsPanel rows={topModels} timeframe={timeframe} />

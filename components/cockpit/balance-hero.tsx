@@ -62,10 +62,28 @@ export function BalanceHero({
         <Metric
           label={`Spend · ${timeframeLabel(timeframe)}`}
           value={formatUsd(burn.periodSpend)}
-          hint="Account-wide activity"
+          hint={
+            burn.periodDataSource === 'live_key'
+              ? 'Live · /key'
+              : 'Activity aggregate'
+          }
         />
-        <Metric label="Avg / day" value={formatUsd(burn.avgDailySpend)} />
-        <Metric label="Requests" value={String(burn.periodRequests)} />
+        <Metric
+          label={timeframe === 'today' ? 'Pace / day' : 'Avg / day'}
+          value={formatUsd(burn.avgDailySpend)}
+          hint={timeframe === 'today' ? 'Spend so far today' : undefined}
+        />
+        <Metric
+          label="Requests"
+          value={
+            burn.periodRequests > 0 ? String(burn.periodRequests) : '—'
+          }
+          hint={
+            timeframe === 'today' && burn.periodRequests === 0
+              ? 'Updates after day closes'
+              : undefined
+          }
+        />
       </View>
 
       <View style={{ gap: 4 }}>
