@@ -41,14 +41,23 @@ export function needsAnalyticsApi(rollup: ExploreRollup): boolean {
 }
 
 /**
- * Minute/hour queries are expensive — keep windows tight.
- * Today → local midnight–now; otherwise last 24h.
+ * Minute/hour queries stay on a tight window.
+ * 3h → last 3 hours; Today → local midnight–now; else clamp to last 3h.
  */
 export function analyticsTimeRange(
   timeframe: TimeframeId,
   now = new Date()
 ): { start: string; end: string; note: string | null } {
   const end = now.toISOString();
+
+  if (timeframe === '3h') {
+    const start = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+    return {
+      start: start.toISOString(),
+      end,
+      note: null,
+    };
+  }
 
   if (timeframe === 'today') {
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -59,11 +68,11 @@ export function analyticsTimeRange(
     };
   }
 
-  const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const start = new Date(now.getTime() - 3 * 60 * 60 * 1000);
   return {
     start: start.toISOString(),
     end,
-    note: 'Minute/hour rollup limited to the last 24 hours (Analytics API).',
+    note: 'Minute/hour rollup limited to the last 3 hours — switch Range to 3h.',
   };
 }
 

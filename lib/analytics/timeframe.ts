@@ -7,14 +7,18 @@ import type { ActivityItem, KeyInfo, ManagedKey } from '@/lib/openrouter/types';
  * includes **completed** UTC days — the in-progress calendar day is absent.
  * "Today" spend therefore comes from live GET /key (usage_daily), not activity.
  */
-export type TimeframeId = 'today' | '7d' | '30d';
+export type TimeframeId = 'today' | '3h' | '7d' | '30d';
 
 export const TIMEFRAMES: { id: TimeframeId; label: string; short: string }[] = [
   { id: 'today', label: 'Today', short: '1d' },
+  { id: '3h', label: '3 hours', short: '3h' },
   { id: '7d', label: '7 days', short: '7d' },
   { id: '30d', label: '30 days', short: '30d' },
 ];
 
+export function isIntradayTimeframe(timeframe: TimeframeId): boolean {
+  return timeframe === 'today' || timeframe === '3h';
+}
 /** YYYY-MM-DD in the device local timezone. */
 export function localDateString(date = new Date()): string {
   const y = date.getFullYear();
@@ -91,6 +95,18 @@ export function getTimeframeDefinition(timeframe: TimeframeId): TimeframeDefinit
     };
   }
 
+  if (timeframe === '3h') {
+    const start = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+    return {
+      id: '3h',
+      label: '3 hours',
+      windowDescription: `${localTimeLabel(start)} – ${timeLabel} (last 3h, device local)`,
+      activityCoversWindow: false,
+      dataNote:
+        'Best with Minute rollup via Analytics API. Activity feed is daily-only and won’t resolve a 3-hour window.',
+    };
+  }
+
   if (timeframe === '7d') {
     const start = new Date();
     start.setDate(start.getDate() - 6);
@@ -147,13 +163,13 @@ export function filterActivityByTimeframe(
     });
   }
 
-  // Today: activity rarely includes the in-progress day; keep any row tagged local today.
+  // Today / 3h: activity rarely includes the in-progress day; keep any row tagged local today.
   const today = localDateString();
   return activity.filter((row) => normalizeDayKey(row.date) === today);
 }
 
 export function periodDayCount(timeframe: TimeframeId, activity: ActivityItem[]): number {
-  if (timeframe === 'today') return 1;
+  if (timeframe === 'today' || timeframe === '3h') return 1;
 
   const filtered = filterActivityByTimeframe(activity, timeframe);
   const dates = new Set(

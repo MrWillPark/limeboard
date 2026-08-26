@@ -34,6 +34,7 @@ import {
 import {
   filterActivityByTimeframe,
   computeLiveTodaySpend,
+  isIntradayTimeframe,
   timeframeLabel,
   type TimeframeId,
 } from '@/lib/analytics/timeframe';
@@ -167,7 +168,7 @@ export default function ExploreScreen() {
         })),
       };
     }
-    if (useAnalytics || timeframe === 'today') {
+    if (useAnalytics || isIntradayTimeframe(timeframe)) {
       return {
         buckets: [] as string[],
         series: [] as { key: string; color: string; values: number[] }[],
@@ -212,7 +213,9 @@ export default function ExploreScreen() {
 
   const chartLabels = timeSeries.map((p) => p.label);
   const empty =
-    !useAnalytics && activity.length === 0 && timeframe !== 'today';
+    !useAnalytics &&
+    activity.length === 0 &&
+    !isIntradayTimeframe(timeframe);
   const analyticsNote =
     lineAnalytics.data?.rangeNote ?? stackedAnalytics.data?.rangeNote ?? null;
 
@@ -347,11 +350,12 @@ export default function ExploreScreen() {
                     {chartError.message}
                   </AppText>
                 ) : !useAnalytics &&
-                  timeframe === 'today' &&
+                  isIntradayTimeframe(timeframe) &&
                   metric !== 'spend' ? (
                   <AppText variant="caption">
-                    Today only has live spend from /key unless you pick Minute or Hour
-                    rollup (Analytics API).
+                    {timeframe === '3h'
+                      ? 'Pick Minute rollup for a real 3-hour Analytics series.'
+                      : 'Today only has live spend from /key unless you pick Minute or Hour rollup (Analytics API).'}
                   </AppText>
                 ) : chartType === 'bar' && stacked.buckets.length > 0 ? (
                   <>
@@ -414,6 +418,10 @@ export default function ExploreScreen() {
                     ) : timeframe === 'today' ? (
                       <AppText variant="caption">
                         Midnight → now · trail grows as you refresh (live /key)
+                      </AppText>
+                    ) : timeframe === '3h' && !useAnalytics ? (
+                      <AppText variant="caption">
+                        Switch Rollup to Minute for last-3-hour Analytics buckets.
                       </AppText>
                     ) : null}
                   </>

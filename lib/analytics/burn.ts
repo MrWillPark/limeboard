@@ -87,7 +87,7 @@ export function computeBurn(
 
   const days = periodDayCount(timeframe, activity);
   let avgDailySpend =
-    timeframe === 'today'
+    timeframe === 'today' || timeframe === '3h'
       ? periodSpend
       : days > 0
         ? periodSpend / days
@@ -96,6 +96,8 @@ export function computeBurn(
   const velocity =
     timeframe === 'today' && periodSpend > 0
       ? (periodSpend / localHoursElapsedToday()) * 24
+      : timeframe === '3h' && periodSpend > 0
+        ? (periodSpend / 3) * 24
       : windowActivity.length > 0 && avgDailySpend > 0
         ? avgDailySpend
         : (key?.usage_daily ?? 0);

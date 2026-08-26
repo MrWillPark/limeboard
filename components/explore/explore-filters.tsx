@@ -117,13 +117,11 @@ export function ExploreFilters({
       </View>
       <AppText variant="caption" numberOfLines={1} style={{ fontSize: 11 }}>
         {needsAnalyticsApi(rollup)
-          ? rollup === 'minute'
-            ? timeframe === 'today'
-              ? `${def.windowDescription} · minute buckets`
-              : 'Last 24h · minute buckets (Analytics API)'
+          ? timeframe === '3h'
+            ? `${def.windowDescription} · ${rollup} buckets`
             : timeframe === 'today'
-              ? `${def.windowDescription} · hour buckets`
-              : 'Last 24h · hour buckets (Analytics API)'
+              ? `${def.windowDescription} · ${rollup} buckets`
+              : `Last 3h · ${rollup} buckets — set Range to 3h`
           : `${def.windowDescription}${timeframe === 'today' ? ' · live /key' : ''}`}
       </AppText>
     </View>
