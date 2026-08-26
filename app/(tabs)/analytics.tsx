@@ -7,15 +7,12 @@ import {
   LineChart,
   StackedBarChart,
 } from '@/components/charts/charts';
+import { ExploreFilters } from '@/components/explore/explore-filters';
 import { ExploreOverview } from '@/components/explore/explore-overview';
-import { ExplorePicker } from '@/components/explore/explore-picker';
-import { TimeframeCaption } from '@/components/shared/timeframe-caption';
-import { TimeframePicker } from '@/components/shared/timeframe-picker';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
 import { colors, spacing } from '@/constants/theme';
 import {
-  EXPLORE_GROUPS,
   EXPLORE_METRICS,
   aggregateRanked,
   aggregateStackedTimeSeries,
@@ -37,16 +34,6 @@ import {
 } from '@/lib/analytics/timeframe';
 import { useActivity, useKeyInfo, useManagedKeys } from '@/hooks/use-openrouter';
 import { useAuth } from '@/providers/auth-provider';
-
-const CHART_TYPES: { id: ExploreChartType; label: string }[] = [
-  { id: 'line', label: 'Line' },
-  { id: 'bar', label: 'Stacked bar' },
-];
-
-const ROLLUPS: { id: ExploreRollup; label: string }[] = [
-  { id: 'day', label: 'Daily' },
-  { id: 'week', label: 'Weekly' },
-];
 
 export default function ExploreScreen() {
   const { isConnected, meta } = useAuth();
@@ -183,37 +170,18 @@ export default function ExploreScreen() {
         <>
           <ExploreOverview totals={overview} timeframe={timeframe} liveSpend={timeframe === 'today'} />
 
-          <Panel style={{ gap: spacing.lg }}>
-            <TimeframePicker value={timeframe} onChange={setTimeframe} />
-            <TimeframeCaption
-              timeframe={timeframe}
-              dataSource={timeframe === 'today' ? 'live_key' : undefined}
-            />
-            <ExplorePicker
-              label="Metric"
-              options={EXPLORE_METRICS.map((m) => ({ id: m.id, label: m.label }))}
-              value={metric}
-              onChange={(id) => setMetric(id as ExploreMetric)}
-            />
-            <ExplorePicker
-              label="Group by"
-              options={EXPLORE_GROUPS.map((g) => ({ id: g.id, label: g.label }))}
-              value={groupBy}
-              onChange={(id) => setGroupBy(id as ExploreGroupBy)}
-            />
-            <ExplorePicker
-              label="Rollup"
-              options={ROLLUPS.map((r) => ({ id: r.id, label: r.label }))}
-              value={rollup}
-              onChange={(id) => setRollup(id as ExploreRollup)}
-            />
-            <ExplorePicker
-              label="Chart"
-              options={CHART_TYPES.map((c) => ({ id: c.id, label: c.label }))}
-              value={chartType}
-              onChange={(id) => setChartType(id as ExploreChartType)}
-            />
-          </Panel>
+          <ExploreFilters
+            timeframe={timeframe}
+            onTimeframeChange={setTimeframe}
+            metric={metric}
+            onMetricChange={setMetric}
+            groupBy={groupBy}
+            onGroupByChange={setGroupBy}
+            rollup={rollup}
+            onRollupChange={setRollup}
+            chartType={chartType}
+            onChartTypeChange={setChartType}
+          />
 
           <Panel style={{ gap: spacing.md }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
