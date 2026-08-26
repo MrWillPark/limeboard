@@ -1,0 +1,149 @@
+import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
+
+import { AppText } from '@/components/ui/app-text';
+import { Panel } from '@/components/ui/panel';
+import { colors, spacing } from '@/constants/theme';
+import { formatUsd } from '@/lib/analytics/burn';
+import { useKeyInfo, useManagedKeys } from '@/hooks/use-openrouter';
+import { useAuth } from '@/providers/auth-provider';
+
+export default function KeysScreen() {
+  const { isConnected, meta, maskedKey } = useAuth();
+  const keyQuery = useKeyInfo();
+  const keysQuery = useManagedKeys();
+
+  if (!isConnected) {
+    return (
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        style={{ flex: 1, backgroundColor: colors.bg }}
+        contentContainerStyle={{ padding: spacing.lg }}
+      >
+        <Panel>
+          <AppText>Connect a key to inspect your fleet.</AppText>
+        </Panel>
+      </ScrollView>
+    );
+  }
+
+  return (
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: 40 }}
+      refreshControl={
+        <RefreshControl
+          refreshing={keyQuery.isFetching || keysQuery.isFetching}
+          onRefresh={() => {
+            keyQuery.refetch();
+            if (meta?.isManagementKey) keysQuery.refetch();
+          }}
+          tintColor={colors.lime}
+        />
+      }
+    >
+      <AppText>
+        Active session key and provisioned sub-keys with burn velocity.
+      </AppText>
+
+      <Panel style={{ gap: spacing.sm }} accent>
+        <AppText variant="label" color={colors.limeSoft}>
+          Connected session
+        </AppText>
+        <AppText variant="title" selectable>
+          {meta?.isManagementKey ? 'Management key' : 'API key'}
+        </AppText>
+        <AppText variant="mono" selectable>
+          {maskedKey}
+        </AppText>
+        <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.sm }}>
+          <KeyMetric label="Today" value={formatUsd(keyQuery.data?.usage_daily)} />
+          <KeyMetric label="Month" value={formatUsd(keyQuery.data?.usage_monthly)} />
+          <KeyMetric
+            label="Remaining"
+            value={formatUsd(keyQuery.data?.limit_remaining)}
+          />
+        </View>
+      </Panel>
+
+      {!meta?.isManagementKey ? (
+        <Panel style={{ gap: spacing.sm }}>
+          <AppText variant="title">Fleet list locked</AppText>
+          <AppText>
+            Listing every provisioned key requires a Management API key
+            (GET /api/v1/keys).
+          </AppText>
+        </Panel>
+      ) : keysQuery.isLoading ? (
+        <ActivityIndicator color={colors.lime} />
+      ) : keysQuery.isError ? (
+        <Panel>
+          <AppText color={colors.red} selectable>
+            {(keysQuery.error as Error).message}
+          </AppText>
+        </Panel>
+      ) : (
+        <View style={{ gap: spacing.sm }}>
+          <AppText variant="label">Provisioned keys · {keysQuery.data?.length ?? 0}</AppText>
+          {(keysQuery.data ?? []).map((key) => (
+            <Panel key={key.hash} style={{ gap: spacing.sm }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: spacing.md,
+                }}
+              >
+                <View style={{ flex: 1, gap: 2 }}>
+                  <AppText variant="title" numberOfLines={1} selectable>
+                    {key.name || key.label}
+                  </AppText>
+                  <AppText variant="caption" selectable>
+                    {key.label}
+                  </AppText>
+                </View>
+                <StatusPill disabled={key.disabled} />
+              </View>
+              <View style={{ flexDirection: 'row', gap: spacing.lg }}>
+                <KeyMetric label="Today" value={formatUsd(key.usage_daily)} />
+                <KeyMetric label="Week" value={formatUsd(key.usage_weekly)} />
+                <KeyMetric label="Limit left" value={formatUsd(key.limit_remaining)} />
+              </View>
+            </Panel>
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function KeyMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ gap: 2 }}>
+      <AppText variant="label">{label}</AppText>
+      <AppText variant="mono" selectable>
+        {value}
+      </AppText>
+    </View>
+  );
+}
+
+function StatusPill({ disabled }: { disabled: boolean }) {
+  return (
+    <View
+      style={{
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+        backgroundColor: disabled ? colors.redDim : colors.limeDim,
+      }}
+    >
+      <AppText
+        style={{ fontSize: 12, color: disabled ? colors.red : colors.lime }}
+      >
+        {disabled ? 'Disabled' : 'Active'}
+      </AppText>
+    </View>
+  );
+}
