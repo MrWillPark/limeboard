@@ -5,7 +5,6 @@ import {
   filterActivityByTimeframe,
   formatDayKeyLabel,
   getTimeframeDefinition,
-  localDateString,
   localHoursElapsedToday,
   normalizeDayKey,
   periodDayCount,
@@ -199,17 +198,6 @@ export function dailySpendSeries(
   return [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, value]) => ({ date, value }));
-}
-
-/** Recent completed days plus live today for sparklines / trend. */
-export function todaySpendSeriesWithLive(
-  activity: ActivityItem[],
-  liveTodaySpend: number
-): { date: string; value: number }[] {
-  const history = dailySpendSeries(filterActivityByTimeframe(activity, '7d')).filter(
-    (p) => p.date !== localDateString()
-  );
-  return [...history.slice(-6), { date: localDateString(), value: liveTodaySpend }];
 }
 
 export type FleetSnapshot = {

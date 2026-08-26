@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -27,12 +27,12 @@ import {
   computeBurn,
   computeFleetSnapshot,
   dailySpendSeries,
-  todaySpendSeriesWithLive,
 } from '@/lib/analytics/burn';
 import {
   filterActivityByTimeframe,
   type TimeframeId,
 } from '@/lib/analytics/timeframe';
+import { buildTodayTrendSeries, recordTodaySpendSample } from '@/lib/analytics/today-trail';
 import {
   useActivity,
   useCredits,
@@ -65,12 +65,28 @@ export default function CockpitScreen() {
     [keyQuery.data, creditsQuery.data, activity, timeframe, keysQuery.data, meta?.isManagementKey]
   );
 
+  useEffect(() => {
+    if (timeframe !== 'today') return;
+    recordTodaySpendSample(burn.periodSpend);
+  }, [
+    timeframe,
+    burn.periodSpend,
+    keyQuery.dataUpdatedAt,
+    keysQuery.dataUpdatedAt,
+  ]);
+
   const spendSeries = useMemo(() => {
     if (timeframe === 'today') {
-      return todaySpendSeriesWithLive(activity, burn.periodSpend);
+      return buildTodayTrendSeries(burn.periodSpend);
     }
     return dailySpendSeries(windowActivity);
-  }, [timeframe, activity, burn.periodSpend, windowActivity]);
+  }, [
+    timeframe,
+    burn.periodSpend,
+    windowActivity,
+    keyQuery.dataUpdatedAt,
+    keysQuery.dataUpdatedAt,
+  ]);
 
   const topModels = useMemo(
     () => aggregateByModel(windowActivity),

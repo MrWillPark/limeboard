@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
 
 import {
@@ -32,6 +32,7 @@ import {
   timeframeLabel,
   type TimeframeId,
 } from '@/lib/analytics/timeframe';
+import { buildTodayTrendSeries, recordTodaySpendSample } from '@/lib/analytics/today-trail';
 import { useActivity, useKeyInfo, useManagedKeys } from '@/hooks/use-openrouter';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -52,26 +53,69 @@ export default function ExploreScreen() {
     [activityQuery.data, timeframe]
   );
 
-  const overview = useMemo(() => {
-    const base = computeOverview(activity);
-    if (timeframe !== 'today') return base;
-    const live = computeLiveTodaySpend(
+  const liveToday = useMemo(() => {
+    if (timeframe !== 'today') return null;
+    return computeLiveTodaySpend(
       keyQuery.data,
       keysQuery.data,
       Boolean(meta?.isManagementKey)
     );
-    return { ...base, spend: live.spend };
-  }, [activity, timeframe, keyQuery.data, keysQuery.data, meta?.isManagementKey]);
+  }, [timeframe, keyQuery.data, keysQuery.data, meta?.isManagementKey]);
+
+  const overview = useMemo(() => {
+    const base = computeOverview(activity);
+    if (!liveToday) return base;
+    return { ...base, spend: liveToday.spend };
+  }, [activity, liveToday]);
 
   const ranked = useMemo(
     () => aggregateRanked(activity, metric, groupBy),
     [activity, metric, groupBy]
   );
-  const timeSeries = useMemo(
-    () => aggregateTimeSeries(activity, metric, rollup),
-    [activity, metric, rollup]
-  );
+
+  const todayTrail = useMemo(() => {
+    if (timeframe !== 'today' || metric !== 'spend') return null;
+    return buildTodayTrendSeries(liveToday?.spend ?? 0);
+  }, [
+    timeframe,
+    metric,
+    liveToday?.spend,
+    keyQuery.dataUpdatedAt,
+    keysQuery.dataUpdatedAt,
+  ]);
+
+  useEffect(() => {
+    if (timeframe !== 'today') return;
+    recordTodaySpendSample(liveToday?.spend ?? 0);
+  }, [
+    timeframe,
+    liveToday?.spend,
+    keyQuery.dataUpdatedAt,
+    keysQuery.dataUpdatedAt,
+  ]);
+
+  const timeSeries = useMemo(() => {
+    if (todayTrail) {
+      return todayTrail.map((p) => ({
+        bucket: p.date,
+        value: p.value,
+        label: p.label,
+      }));
+    }
+    return aggregateTimeSeries(activity, metric, rollup).map((p) => ({
+      ...p,
+      label: formatBucketLabel(p.bucket, rollup),
+    }));
+  }, [todayTrail, activity, metric, rollup]);
+
   const stacked = useMemo(() => {
+    if (timeframe === 'today') {
+      return {
+        buckets: [] as string[],
+        series: [] as { key: string; color: string; values: number[] }[],
+        totals: [] as number[],
+      };
+    }
     const raw = aggregateStackedTimeSeries(activity, metric, groupBy, rollup, 5);
     return {
       ...raw,
@@ -83,14 +127,16 @@ export default function ExploreScreen() {
             : colors.chart[i % colors.chart.length],
       })),
     };
-  }, [activity, metric, groupBy, rollup]);
+  }, [activity, metric, groupBy, rollup, timeframe]);
 
   const metricMeta = EXPLORE_METRICS.find((m) => m.id === metric)!;
   const formatValue = (n: number) => formatMetricValue(metric, n);
-  const seriesTotal = useMemo(
-    () => timeSeries.reduce((s, p) => s + p.value, 0),
-    [timeSeries]
-  );
+  const seriesTotal = useMemo(() => {
+    if (timeframe === 'today' && metric === 'spend') {
+      return liveToday?.spend ?? 0;
+    }
+    return timeSeries.reduce((s, p) => s + p.value, 0);
+  }, [timeframe, metric, liveToday?.spend, timeSeries]);
 
   const donutSlices = ranked.slice(0, 5).map((row, i) => ({
     value: row.value,
@@ -104,7 +150,7 @@ export default function ExploreScreen() {
     color: colors.chart[i % colors.chart.length],
   }));
 
-  const bucketLabels = timeSeries.map((p) => formatBucketLabel(p.bucket, rollup));
+  const chartLabels = timeSeries.map((p) => p.label);
   const empty = activity.length === 0 && timeframe !== 'today';
 
   const filters = (
@@ -209,12 +255,24 @@ export default function ExploreScreen() {
                   </AppText>
                 </View>
 
-                {chartType === 'line' ? (
-                  <LineChart
-                    values={timeSeries.map((p) => p.value)}
-                    labels={bucketLabels}
-                    height={132}
-                  />
+                {timeframe === 'today' && metric !== 'spend' ? (
+                  <AppText variant="caption">
+                    Today only has live spend from /key. Switch metric to Spend, or pick
+                    7d / 30d for activity breakdowns.
+                  </AppText>
+                ) : chartType === 'line' || timeframe === 'today' ? (
+                  <>
+                    <LineChart
+                      values={timeSeries.map((p) => p.value)}
+                      labels={chartLabels}
+                      height={132}
+                    />
+                    {timeframe === 'today' ? (
+                      <AppText variant="caption">
+                        Midnight → now · trail grows as you refresh (live /key)
+                      </AppText>
+                    ) : null}
+                  </>
                 ) : (
                   <>
                     <StackedBarChart

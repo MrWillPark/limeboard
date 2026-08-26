@@ -80,10 +80,12 @@ export function LineChart({
             ))
           : null}
       </Svg>
-      {labels && labels.length >= 2 ? (
+      {labels && labels.length > 0 ? (
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: PAD.left }}>
           <AppText variant="caption">{labels[0]}</AppText>
-          <AppText variant="caption">{labels[labels.length - 1]}</AppText>
+          {labels.length > 1 ? (
+            <AppText variant="caption">{labels[labels.length - 1]}</AppText>
+          ) : null}
         </View>
       ) : null}
     </View>
