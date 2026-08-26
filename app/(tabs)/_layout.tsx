@@ -41,9 +41,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="analytics"
         options={{
-          title: 'Models',
+          title: 'Explore',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="pie-chart-outline" color={color} size={size} />
+            <Ionicons name="analytics-outline" color={color} size={size} />
           ),
         }}
       />

@@ -34,7 +34,7 @@ Then open in Expo Go (iOS/Android) or press `i` / `a` / `w`.
 ## MVP screens
 
 1. **Cockpit** — balance, burn sparkline, runway estimate  
-2. **Models** — cost share by model / provider  
+2. **Explore** — metric / group-by / rollup charts (Activity explorer-style)  
 3. **Keys** — session + fleet breakdown  
 4. **Settings** — connect / replace / disconnect key  
 
