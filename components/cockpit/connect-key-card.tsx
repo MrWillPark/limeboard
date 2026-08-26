@@ -85,7 +85,7 @@ export function ConnectKeyCard({ onSuccess }: Props) {
         onPress={onConnect}
         disabled={loading || value.trim().length < 12}
       />
-      {loading ? <ActivityIndicator color={colors.lime} /> : null}
+      {loading ? <ActivityIndicator color={colors.limeSoft} /> : null}
     </Panel>
   );
 }

@@ -85,7 +85,7 @@ export function InteractiveLineChart({
   values,
   labels,
   height = 160,
-  color = colors.lime,
+  color = colors.chartLine,
   selectedIndex,
   onSelectIndex,
 }: InteractiveLineProps) {
@@ -159,7 +159,7 @@ export function InteractiveLineChart({
                   cy={d.y}
                   r={index === i ? 6 : 3.5}
                   fill={index === i ? colors.text : color}
-                  stroke={index === i ? color : 'none'}
+                  stroke={index === i ? colors.chartSelect : 'none'}
                   strokeWidth={index === i ? 2 : 0}
                 />
               ))}

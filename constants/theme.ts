@@ -18,6 +18,10 @@ export const colors = {
   limeDim: 'rgba(57, 255, 20, 0.14)',
   limeGlow: 'rgba(57, 255, 20, 0.35)',
 
+  /** Neutral chart strokes — brand lime reserved for selection & hero KPIs */
+  chartLine: '#8A9E94',
+  chartSelect: '#39FF14',
+
   amber: '#F59E0B',
   amberDim: 'rgba(245, 158, 11, 0.16)',
   red: '#F43F5E',
@@ -28,7 +32,7 @@ export const colors = {
   textMuted: '#5E7369',
   textInverse: '#0B0E0D',
 
-  chart: ['#39FF14', '#A3E635', '#4ADE80', '#22D3EE', '#F59E0B', '#A78BFA', '#F472B6'],
+  chart: ['#22D3EE', '#F59E0B', '#A78BFA', '#F472B6', '#4ADE80', '#FB7185', '#94A3B8'],
 } as const;
 
 export const spacing = {

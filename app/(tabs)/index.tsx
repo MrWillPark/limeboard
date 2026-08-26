@@ -117,7 +117,7 @@ export default function CockpitScreen() {
       <View
         style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center' }}
       >
-        <ActivityIndicator color={colors.lime} />
+        <ActivityIndicator color={colors.limeSoft} />
       </View>
     );
   }
@@ -136,7 +136,7 @@ export default function CockpitScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.lime}
+            tintColor={colors.limeSoft}
           />
         ) : undefined
       }
@@ -197,7 +197,7 @@ export default function CockpitScreen() {
               </AppText>
               <Link href="/connect" asChild>
                 <Pressable>
-                  <AppText color={colors.lime}>Replace key →</AppText>
+                  <AppText color={colors.limeSoft}>Replace key →</AppText>
                 </Pressable>
               </Link>
             </Panel>
@@ -232,7 +232,7 @@ function NavChip({ label, onPress }: { label: string; onPress: () => void }) {
         alignItems: 'center',
       }}
     >
-      <AppText color={colors.lime}>{label}</AppText>
+      <AppText color={colors.limeSoft}>{label}</AppText>
     </Pressable>
   );
 }

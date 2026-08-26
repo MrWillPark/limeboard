@@ -44,7 +44,7 @@ export function TimeframePicker({ value, onChange, compact }: Props) {
               <AppText
                 style={{
                   fontSize: 13,
-                  color: active ? colors.lime : colors.textSecondary,
+                  color: active ? colors.limeSoft : colors.textSecondary,
                 }}
               >
                 {compact ? opt.short : opt.label}

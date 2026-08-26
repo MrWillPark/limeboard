@@ -30,7 +30,7 @@ export function AppButton({
       ? colors.textInverse
       : variant === 'danger'
         ? colors.red
-        : colors.lime;
+        : colors.limeSoft;
   const border =
     variant === 'ghost'
       ? colors.borderStrong

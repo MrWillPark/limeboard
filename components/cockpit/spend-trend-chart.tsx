@@ -231,7 +231,7 @@ export function SpendTrendChart({
           <AppText variant="mono" selectable color={colors.lime} style={{ fontSize: 15 }}>
             {headlineValue}
           </AppText>
-          <AppText variant="caption" color={colors.limeSoft}>
+          <AppText variant="caption" color={colors.textMuted}>
             {headlineLabel}
           </AppText>
         </View>
@@ -261,7 +261,7 @@ export function SpendTrendChart({
       </View>
 
       {stackLoading ? (
-        <ActivityIndicator color={colors.lime} style={{ marginVertical: spacing.md }} />
+        <ActivityIndicator color={colors.limeSoft} style={{ marginVertical: spacing.md }} />
       ) : mode === 'stack' && stacked ? (
         <>
           <InteractiveStackedBarChart
@@ -319,7 +319,7 @@ export function SpendTrendChart({
               <AppText variant="caption" color={colors.textMuted}>
                 {(slice.share * 100).toFixed(0)}%
               </AppText>
-              <AppText variant="mono" selectable style={{ fontSize: 11, color: colors.limeSoft }}>
+              <AppText variant="mono" selectable style={{ fontSize: 11, color: colors.text }}>
                 {formatCockpitMetric(metric, slice.value)}
               </AppText>
             </View>
@@ -376,7 +376,7 @@ function Chip({
       <AppText
         style={{
           fontSize: 11,
-          color: active ? colors.lime : colors.textSecondary,
+          color: active ? colors.limeSoft : colors.textSecondary,
         }}
       >
         {label}

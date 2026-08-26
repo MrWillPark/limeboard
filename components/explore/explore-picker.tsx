@@ -149,13 +149,13 @@ export function ExplorePicker({ label, options, value, onChange, flex, dense }: 
                       style={{
                         flex: 1,
                         fontSize: 15,
-                        color: active ? colors.lime : colors.text,
+                        color: active ? colors.limeSoft : colors.text,
                       }}
                     >
                       {opt.label}
                     </AppText>
                     {active ? (
-                      <Ionicons name="checkmark" size={18} color={colors.lime} />
+                      <Ionicons name="checkmark" size={18} color={colors.limeSoft} />
                     ) : null}
                   </Pressable>
                 );

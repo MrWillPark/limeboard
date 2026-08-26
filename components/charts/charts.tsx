@@ -19,7 +19,7 @@ export function LineChart({
   values,
   labels,
   height = 160,
-  color = colors.lime,
+  color = colors.chartLine,
   showDots = true,
 }: LineChartProps) {
   const { width: screenWidth } = useWindowDimensions();
@@ -199,7 +199,7 @@ export function HorizontalBarChart({
             <AppText variant="caption" style={{ fontSize: 11 }}>
               {(row.share * 100).toFixed(0)}%
             </AppText>
-            <AppText variant="mono" selectable style={{ fontSize: 13, color: colors.limeSoft }}>
+            <AppText variant="mono" selectable style={{ fontSize: 13, color: colors.text }}>
               {formatValue(row.value)}
             </AppText>
           </View>
@@ -279,7 +279,7 @@ export function Sparkline({
   values,
   width = 160,
   height = 48,
-  color = colors.lime,
+  color = colors.chartLine,
 }: {
   values: number[];
   width?: number;

@@ -535,12 +535,12 @@ export default function ExploreScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor={colors.lime}
+          tintColor={colors.limeSoft}
         />
       }
     >
       {activityQuery.isLoading && !useAnalytics ? (
-        <ActivityIndicator color={colors.lime} />
+        <ActivityIndicator color={colors.limeSoft} />
       ) : activityQuery.isError && !useAnalytics ? (
         <Panel>
           <AppText color={colors.red} selectable>
@@ -600,7 +600,7 @@ export default function ExploreScreen() {
                 ) : null}
 
                 {chartLoading ? (
-                  <ActivityIndicator color={colors.lime} />
+                  <ActivityIndicator color={colors.limeSoft} />
                 ) : chartError ? (
                   <AppText color={colors.red} selectable>
                     {chartError.message}
@@ -737,7 +737,7 @@ export default function ExploreScreen() {
                             <AppText
                               variant="mono"
                               selectable
-                              style={{ fontSize: 11, color: colors.limeSoft }}
+                              style={{ fontSize: 11, color: colors.text }}
                             >
                               {formatValue(row.value)}
                             </AppText>

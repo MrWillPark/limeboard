@@ -49,7 +49,7 @@ export default function KeysScreen() {
             keyQuery.refetch();
             if (meta?.isManagementKey) keysQuery.refetch();
           }}
-          tintColor={colors.lime}
+          tintColor={colors.limeSoft}
         />
       }
     >
@@ -79,7 +79,7 @@ export default function KeysScreen() {
           </AppText>
         </Panel>
       ) : keysQuery.isLoading ? (
-        <ActivityIndicator color={colors.lime} />
+        <ActivityIndicator color={colors.limeSoft} />
       ) : keysQuery.isError ? (
         <Panel>
           <AppText color={colors.red} selectable>
@@ -159,7 +159,7 @@ function StatusPill({ disabled }: { disabled: boolean }) {
       }}
     >
       <AppText
-        style={{ fontSize: 12, color: disabled ? colors.red : colors.lime }}
+        style={{ fontSize: 12, color: disabled ? colors.red : colors.limeSoft }}
       >
         {disabled ? 'Disabled' : 'Active'}
       </AppText>
