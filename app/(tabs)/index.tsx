@@ -178,6 +178,7 @@ export default function CockpitScreen() {
                 total={burn.periodSpend}
                 lineSeries={spendSeries}
                 dataSource={burn.periodDataSource}
+                isManagementKey={meta?.isManagementKey}
               />
               <TokenBreakdownPanel burn={burn} timeframe={timeframe} />
               <TopModelsPanel rows={topModels} timeframe={timeframe} />

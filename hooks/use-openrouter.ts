@@ -70,6 +70,7 @@ type AnalyticsSeriesArgs = {
   rollup: ExploreRollup;
   timeframe: TimeframeId;
   withDimension?: boolean;
+  enabled?: boolean;
 };
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -124,9 +125,11 @@ export function useAnalyticsSeries({
   rollup,
   timeframe,
   withDimension = false,
+  enabled: enabledArg = true,
 }: AnalyticsSeriesArgs) {
   const { apiKey, meta } = useAuth();
   const enabled =
+    enabledArg &&
     Boolean(apiKey) &&
     Boolean(meta?.isManagementKey) &&
     needsAnalyticsApi(rollup);

@@ -1,6 +1,12 @@
 import type { ActivityItem } from '@/lib/openrouter/types';
 
+import {
+  fillStackedGaps,
+  formatAnalyticsBucketLabel,
+  rowsToStackedSeries,
+} from '@/lib/analytics/analytics-query';
 import { formatChartDate, formatTokens, formatUsd } from '@/lib/analytics/burn';
+import type { ExploreMetric } from '@/lib/analytics/explore';
 import {
   formatDayKeyLabel,
   localDateString,
@@ -52,9 +58,88 @@ export function formatCockpitMetric(metric: CockpitMetric, value: number): strin
   return formatTokens(value);
 }
 
-export function stackedModeAvailable(timeframe: TimeframeId, activity: ActivityItem[]): boolean {
-  if (timeframe === 'today' || timeframe === '3h') return false;
+export function cockpitIntradayStack(timeframe: TimeframeId): boolean {
+  return timeframe === 'today' || timeframe === '3h';
+}
+
+export function cockpitAnalyticsRollup(timeframe: TimeframeId): 'minute' | 'hour' {
+  return timeframe === '3h' ? 'minute' : 'hour';
+}
+
+export function cockpitToExploreMetric(metric: CockpitMetric): ExploreMetric {
+  switch (metric) {
+    case 'spend':
+      return 'spend';
+    case 'requests':
+      return 'requests';
+    case 'tokens':
+      return 'prompt_tokens';
+  }
+}
+
+/**
+ * Activity is daily-only — no intraday model buckets for Today/3h.
+ * Those windows use the Analytics API (same as Explore minute/hour rollups).
+ */
+export function stackedModeAvailable(
+  timeframe: TimeframeId,
+  activity: ActivityItem[],
+  options?: { isManagementKey?: boolean }
+): boolean {
+  if (cockpitIntradayStack(timeframe)) {
+    return Boolean(options?.isManagementKey);
+  }
   return activity.length > 0;
+}
+
+export function buildCockpitStackedFromAnalytics(
+  rows: Record<string, string | number | null>[],
+  metricId: string,
+  granularity: 'minute' | 'hour',
+  rangeStart: string,
+  rangeEnd: string,
+  topN = 5
+): CockpitStackedSeries {
+  const raw = rowsToStackedSeries(rows, metricId, 'model', granularity, topN);
+  const filled = fillStackedGaps(raw, granularity, rangeStart, rangeEnd);
+  return {
+    buckets: filled.buckets,
+    bucketLabels: filled.buckets.map((b) => formatAnalyticsBucketLabel(b, granularity)),
+    series: filled.series,
+    totals: filled.totals,
+  };
+}
+
+/** Sum two stacked series (e.g. prompt + completion tokens). */
+export function mergeStackedSeries(
+  a: CockpitStackedSeries,
+  b: CockpitStackedSeries
+): CockpitStackedSeries {
+  const buckets =
+    a.buckets.length >= b.buckets.length ? a.buckets : b.buckets;
+  const bucketLabels = buckets.map(
+    (_, i) => a.bucketLabels[i] ?? b.bucketLabels[i] ?? buckets[i]!
+  );
+
+  const keys = new Set([
+    ...a.series.map((s) => s.key),
+    ...b.series.map((s) => s.key),
+  ]);
+
+  const series = [...keys].map((key) => ({
+    key,
+    values: buckets.map((_, i) => {
+      const av = a.series.find((s) => s.key === key)?.values[i] ?? 0;
+      const bv = b.series.find((s) => s.key === key)?.values[i] ?? 0;
+      return av + bv;
+    }),
+  }));
+
+  const totals = buckets.map((_, i) =>
+    series.reduce((sum, ser) => sum + (ser.values[i] ?? 0), 0)
+  );
+
+  return { buckets, bucketLabels, series, totals };
 }
 
 /** Daily line buckets from Activity (non-cumulative). */

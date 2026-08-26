@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 import {
@@ -12,14 +12,20 @@ import { colors, radii, spacing } from '@/constants/theme';
 import {
   COCKPIT_METRICS,
   buildCockpitLineSeries,
+  buildCockpitStackedFromAnalytics,
   buildCockpitStackedSeries,
+  cockpitAnalyticsRollup,
+  cockpitIntradayStack,
   cockpitMetricValue,
+  cockpitToExploreMetric,
   formatCockpitMetric,
+  mergeStackedSeries,
   modelBreakdownForDay,
   slicesAtBucket,
   stackedModeAvailable,
   type CockpitChartMode,
   type CockpitMetric,
+  type CockpitStackedSeries,
 } from '@/lib/analytics/cockpit-charts';
 import { shortModelName } from '@/lib/analytics/explore';
 import {
@@ -28,6 +34,7 @@ import {
   timeframeLabel,
   type TimeframeId,
 } from '@/lib/analytics/timeframe';
+import { useAnalyticsSeries } from '@/hooks/use-openrouter';
 import type { ActivityItem } from '@/lib/openrouter/types';
 
 type Props = {
@@ -36,7 +43,25 @@ type Props = {
   total: number;
   lineSeries: { date: string; value: number; label?: string }[];
   dataSource?: 'activity' | 'live_key' | 'fleet_keys';
+  isManagementKey?: boolean;
 };
+
+type ColoredStackedSeries = CockpitStackedSeries & {
+  series: { key: string; color: string; values: number[] }[];
+};
+
+function colorizeStacked(raw: CockpitStackedSeries): ColoredStackedSeries {
+  return {
+    ...raw,
+    series: raw.series.map((s, i) => ({
+      ...s,
+      color:
+        s.key === '__other__'
+          ? colors.textMuted
+          : colors.chart[i % colors.chart.length],
+    })),
+  };
+}
 
 export function SpendTrendChart({
   activity,
@@ -44,12 +69,35 @@ export function SpendTrendChart({
   total,
   lineSeries,
   dataSource,
+  isManagementKey,
 }: Props) {
   const [metric, setMetric] = useState<CockpitMetric>('spend');
   const [mode, setMode] = useState<CockpitChartMode>('stack');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
-  const canStack = stackedModeAvailable(timeframe, activity);
+  const intraday = cockpitIntradayStack(timeframe);
+  const analyticsRollup = cockpitAnalyticsRollup(timeframe);
+  const exploreMetric = cockpitToExploreMetric(metric);
+
+  const primaryAnalytics = useAnalyticsSeries({
+    metric: exploreMetric,
+    groupBy: 'model',
+    rollup: analyticsRollup,
+    timeframe,
+    withDimension: true,
+    enabled: intraday,
+  });
+
+  const completionAnalytics = useAnalyticsSeries({
+    metric: 'completion_tokens',
+    groupBy: 'model',
+    rollup: analyticsRollup,
+    timeframe,
+    withDimension: true,
+    enabled: intraday && metric === 'tokens',
+  });
+
+  const canStack = stackedModeAvailable(timeframe, activity, { isManagementKey });
 
   useEffect(() => {
     setSelectedIndex(null);
@@ -69,20 +117,49 @@ export function SpendTrendChart({
     [activity, timeframe, metric, lineSeries]
   );
 
-  const stacked = useMemo(() => {
-    if (!canStack) return null;
-    const raw = buildCockpitStackedSeries(activity, metric);
-    return {
-      ...raw,
-      series: raw.series.map((s, i) => ({
-        ...s,
-        color:
-          s.key === '__other__'
-            ? colors.textMuted
-            : colors.chart[i % colors.chart.length],
-      })),
-    };
-  }, [activity, metric, canStack]);
+  const activityStacked = useMemo(() => {
+    if (intraday || activity.length === 0) return null;
+    return colorizeStacked(buildCockpitStackedSeries(activity, metric));
+  }, [intraday, activity, metric]);
+
+  const analyticsStacked = useMemo(() => {
+    if (!intraday || !primaryAnalytics.data) return null;
+
+    let raw = buildCockpitStackedFromAnalytics(
+      primaryAnalytics.data.data,
+      primaryAnalytics.data.metricId,
+      primaryAnalytics.data.granularity as 'minute' | 'hour',
+      primaryAnalytics.data.rangeStart,
+      primaryAnalytics.data.rangeEnd
+    );
+
+    if (
+      metric === 'tokens' &&
+      completionAnalytics.data &&
+      completionAnalytics.data.granularity === primaryAnalytics.data.granularity
+    ) {
+      const completion = buildCockpitStackedFromAnalytics(
+        completionAnalytics.data.data,
+        completionAnalytics.data.metricId,
+        completionAnalytics.data.granularity as 'minute' | 'hour',
+        completionAnalytics.data.rangeStart,
+        completionAnalytics.data.rangeEnd
+      );
+      raw = mergeStackedSeries(raw, completion);
+    }
+
+    return colorizeStacked(raw);
+  }, [intraday, metric, primaryAnalytics.data, completionAnalytics.data]);
+
+  const stacked = intraday ? analyticsStacked : activityStacked;
+  const stackLoading =
+    intraday &&
+    mode === 'stack' &&
+    (primaryAnalytics.isLoading ||
+      (metric === 'tokens' && completionAnalytics.isLoading));
+
+  const analyticsNote =
+    primaryAnalytics.data?.rangeNote ?? completionAnalytics.data?.rangeNote ?? null;
 
   const activeCount = mode === 'stack' && stacked ? stacked.buckets.length : lineData.length;
 
@@ -183,7 +260,9 @@ export function SpendTrendChart({
         />
       </View>
 
-      {mode === 'stack' && stacked ? (
+      {stackLoading ? (
+        <ActivityIndicator color={colors.lime} style={{ marginVertical: spacing.md }} />
+      ) : mode === 'stack' && stacked ? (
         <>
           <InteractiveStackedBarChart
             buckets={stacked.buckets}
@@ -195,6 +274,10 @@ export function SpendTrendChart({
           />
           <Legend series={stacked.series} />
         </>
+      ) : mode === 'stack' && intraday && !stackLoading ? (
+        <AppText variant="caption" color={colors.textMuted}>
+          No Analytics buckets in this window yet.
+        </AppText>
       ) : (
         <InteractiveLineChart
           values={lineData.map((p) => p.value)}
@@ -249,12 +332,18 @@ export function SpendTrendChart({
       ) : (
         <AppText variant="caption" color={colors.textMuted}>
           {canStack
-            ? `${timeframeLabel(timeframe)} · stacked by model · ${dataSource === 'fleet_keys' ? 'period spend from Keys' : 'Activity'}`
-            : timeframe === 'today'
-              ? 'Today trail · model split in Top models below'
-              : 'Use 7d or 30d for stacked model bars'}
+            ? intraday
+              ? `${timeframeLabel(timeframe)} · ${analyticsRollup} buckets · Analytics · by model`
+              : `${timeframeLabel(timeframe)} · stacked by model · ${dataSource === 'fleet_keys' ? 'period spend from Keys' : 'Activity'}`
+            : 'Stacked view needs a management key for Today / 3h'}
         </AppText>
       )}
+
+      {analyticsNote ? (
+        <AppText variant="caption" color={colors.textMuted}>
+          {analyticsNote}
+        </AppText>
+      ) : null}
     </Panel>
   );
 }
