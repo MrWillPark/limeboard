@@ -213,8 +213,6 @@ export default function ExploreScreen() {
         />
       }
     >
-      <AppText variant="display">Explore</AppText>
-
       {activityQuery.isLoading ? (
         <ActivityIndicator color={colors.lime} />
       ) : activityQuery.isError ? (

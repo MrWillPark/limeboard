@@ -12,7 +12,12 @@ import {
 import { AppText } from '@/components/ui/app-text';
 import { colors, radii, spacing } from '@/constants/theme';
 
-export type ExplorePickerOption = { id: string; label: string };
+export type ExplorePickerOption = {
+  id: string;
+  label: string;
+  /** Optional denser label for the closed control */
+  shortLabel?: string;
+};
 
 type Props = {
   label: string;
@@ -21,12 +26,15 @@ type Props = {
   onChange: (id: string) => void;
   /** Stretch to fill grid cell */
   flex?: boolean;
+  /** Extra-compact for single-row filter bars */
+  dense?: boolean;
 };
 
-export function ExplorePicker({ label, options, value, onChange, flex }: Props) {
+export function ExplorePicker({ label, options, value, onChange, flex, dense }: Props) {
   const [open, setOpen] = useState(false);
   const { height: screenHeight } = useWindowDimensions();
   const selected = options.find((o) => o.id === value);
+  const closedLabel = selected?.shortLabel ?? selected?.label ?? 'Select';
 
   const select = (id: string) => {
     if (process.env.EXPO_OS === 'ios') {
@@ -37,8 +45,11 @@ export function ExplorePicker({ label, options, value, onChange, flex }: Props) 
   };
 
   return (
-    <View style={{ flex: flex ? 1 : undefined, minWidth: 0, gap: 2 }}>
-      <AppText variant="label" style={{ fontSize: 10, letterSpacing: 0.5 }}>
+    <View style={{ flex: flex ? 1 : undefined, minWidth: 0, gap: dense ? 1 : 2 }}>
+      <AppText
+        variant="label"
+        style={{ fontSize: dense ? 9 : 10, letterSpacing: dense ? 0.3 : 0.5 }}
+      >
         {label}
       </AppText>
       <Pressable
@@ -46,24 +57,28 @@ export function ExplorePicker({ label, options, value, onChange, flex }: Props) 
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          gap: 2,
-          paddingHorizontal: 6,
-          paddingVertical: 8,
+          gap: 1,
+          paddingHorizontal: dense ? 4 : 6,
+          paddingVertical: dense ? 6 : 8,
           borderRadius: radii.sm,
           borderCurve: 'continuous',
           borderWidth: 1,
           borderColor: colors.borderStrong,
           backgroundColor: colors.bgElevated,
-          minHeight: 34,
+          minHeight: dense ? 30 : 34,
         }}
       >
         <AppText
           numberOfLines={1}
-          style={{ flex: 1, fontSize: 12, color: colors.text }}
+          style={{ flex: 1, fontSize: dense ? 11 : 12, color: colors.text }}
         >
-          {selected?.label ?? 'Select'}
+          {closedLabel}
         </AppText>
-        <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
+        <Ionicons
+          name="chevron-down"
+          size={dense ? 10 : 12}
+          color={colors.textMuted}
+        />
       </Pressable>
 
       <Modal
