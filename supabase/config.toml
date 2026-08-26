@@ -1,0 +1,5 @@
+# Run daily (Supabase Dashboard → Edge Functions → sync-rankings → schedule)
+# Or: supabase functions invoke sync-rankings --no-verify-jwt
+
+[functions.sync-rankings]
+verify_jwt = false

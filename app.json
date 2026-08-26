@@ -9,7 +9,8 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.limeboard.mobile"
+      "bundleIdentifier": "app.limeboard.mobile",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -30,6 +31,7 @@
       "expo-router",
       "expo-secure-store",
       "expo-sqlite",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {

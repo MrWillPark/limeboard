@@ -1,15 +1,19 @@
 import { useMemo } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
 
+import { PlatformPulse } from '@/components/cockpit/platform-pulse';
+import { UpgradePanel } from '@/components/subscription/upgrade-panel';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
 import { colors, spacing } from '@/constants/theme';
 import { formatUsd } from '@/lib/analytics/burn';
 import { useKeyInfo, useManagedKeys } from '@/hooks/use-openrouter';
-import { useAuth } from '@/providers/auth-provider';
+import { useOpenRouter } from '@/providers/openrouter-provider';
+import { useEntitlement } from '@/providers/subscription-provider';
 
 export default function KeysScreen() {
-  const { isConnected, meta, maskedKey } = useAuth();
+  const { isConnected, meta, maskedKey } = useOpenRouter();
+  const { canAccessKeysFleet } = useEntitlement();
   const keyQuery = useKeyInfo();
   const keysQuery = useManagedKeys();
 
@@ -28,11 +32,12 @@ export default function KeysScreen() {
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         style={{ flex: 1, backgroundColor: colors.bg }}
-        contentContainerStyle={{ padding: spacing.lg }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
       >
         <Panel>
-          <AppText>Connect a key to inspect your fleet.</AppText>
+          <AppText>Connect a key to inspect your session and fleet.</AppText>
         </Panel>
+        <PlatformPulse />
       </ScrollView>
     );
   }
@@ -72,12 +77,17 @@ export default function KeysScreen() {
 
       {!meta?.isManagementKey ? (
         <Panel style={{ gap: spacing.sm }}>
-          <AppText variant="title">Fleet list locked</AppText>
+          <AppText variant="title">Fleet list needs a management key</AppText>
           <AppText>
-            Listing every provisioned key requires a Management API key
-            (GET /api/v1/keys).
+            Listing every provisioned key requires a Management API key (GET
+            /api/v1/keys). Pro unlocks the fleet UI once connected.
           </AppText>
         </Panel>
+      ) : !canAccessKeysFleet ? (
+        <UpgradePanel
+          title="Fleet analytics"
+          description="See every provisioned key with rolling spend counters and fleet totals."
+        />
       ) : keysQuery.isLoading ? (
         <ActivityIndicator color={colors.limeSoft} />
       ) : keysQuery.isError ? (

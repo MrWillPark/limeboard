@@ -10,14 +10,20 @@ type Props = {
   onChange: (id: TimeframeId) => void;
   /** Compact segmented row without a label (for filter bars) */
   compact?: boolean;
+  /** When set, only these timeframes are selectable (Pro gate) */
+  allowed?: TimeframeId[];
 };
 
-export function TimeframePicker({ value, onChange, compact }: Props) {
+export function TimeframePicker({ value, onChange, compact, allowed }: Props) {
+  const options = allowed
+    ? TIMEFRAMES.filter((opt) => allowed.includes(opt.id))
+    : TIMEFRAMES;
+
   return (
     <View style={{ gap: compact ? 4 : spacing.sm }}>
       {!compact ? <AppText variant="label">Timeframe</AppText> : null}
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-        {TIMEFRAMES.map((opt) => {
+        {options.map((opt) => {
           const active = opt.id === value;
           return (
             <Pressable

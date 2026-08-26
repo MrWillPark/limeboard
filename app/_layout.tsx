@@ -15,6 +15,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { AuthGate } from '@/components/auth/auth-gate';
 import { LimeBoardDarkTheme, colors } from '@/constants/theme';
 import { AppProviders } from '@/providers/app-providers';
 
@@ -56,24 +57,34 @@ export default function RootLayout() {
   return (
     <AppProviders>
       <ThemeProvider value={LimeBoardDarkTheme}>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerStyle: { backgroundColor: colors.bg },
-            headerTintColor: colors.text,
-            headerTitleStyle: { fontFamily: loaded ? 'DMSans_600SemiBold' : undefined },
-            contentStyle: { backgroundColor: colors.bg },
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="connect"
-            options={{
-              presentation: 'modal',
-              title: 'Connect key',
+        <AuthGate>
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
+              headerStyle: { backgroundColor: colors.bg },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontFamily: loaded ? 'DMSans_600SemiBold' : undefined },
+              contentStyle: { backgroundColor: colors.bg },
             }}
-          />
-        </Stack>
+          >
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="connect"
+              options={{
+                presentation: 'modal',
+                title: 'Connect key',
+              }}
+            />
+            <Stack.Screen
+              name="paywall"
+              options={{
+                presentation: 'modal',
+                title: 'LimeBoard Pro',
+              }}
+            />
+          </Stack>
+        </AuthGate>
       </ThemeProvider>
     </AppProviders>
   );

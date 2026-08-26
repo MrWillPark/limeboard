@@ -54,6 +54,12 @@ import {
   useManagedKeys,
 } from '@/hooks/use-openrouter';
 import { useAuth } from '@/providers/auth-provider';
+import { useEntitlement } from '@/providers/subscription-provider';
+import {
+  ManagementKeyHint,
+  UpgradePanel,
+} from '@/components/subscription/upgrade-panel';
+import { PlatformPulse } from '@/components/cockpit/platform-pulse';
 
 function mismatchCaption(
   timeframe: TimeframeId,
@@ -151,17 +157,34 @@ function ensureTodayBucket(
 
 export default function ExploreScreen() {
   const { isConnected, meta } = useAuth();
+  const { isPro, canGroupByModel } = useEntitlement();
   const activityQuery = useActivity();
   const keyQuery = useKeyInfo();
   const keysQuery = useManagedKeys();
 
-  const [timeframe, setTimeframe] = useState<TimeframeId>('30d');
-  const [metric, setMetric] = useState<ExploreMetric>('spend');
-  const [groupBy, setGroupBy] = useState<ExploreGroupBy>('model');
-  const [chartType, setChartType] = useState<ExploreChartType>('line');
-  const [rollup, setRollup] = useState<ExploreRollup>('day');
+  const [timeframeState, setTimeframeState] = useState<TimeframeId>('30d');
+  const [metricState, setMetricState] = useState<ExploreMetric>('spend');
+  const [groupByState, setGroupByState] = useState<ExploreGroupBy>('model');
+  const [chartTypeState, setChartTypeState] = useState<ExploreChartType>('line');
+  const [rollupState, setRollupState] = useState<ExploreRollup>('day');
 
-  const useAnalytics = needsAnalyticsApi(rollup);
+  useEffect(() => {
+    if (!isPro) {
+      setTimeframeState('30d');
+      setMetricState('spend');
+      setGroupByState('provider');
+      setChartTypeState('line');
+      setRollupState('day');
+    }
+  }, [isPro]);
+
+  const timeframe: TimeframeId = isPro ? timeframeState : '30d';
+  const metric: ExploreMetric = isPro ? metricState : 'spend';
+  const groupBy: ExploreGroupBy = canGroupByModel ? groupByState : 'provider';
+  const chartType: ExploreChartType = isPro ? chartTypeState : 'line';
+  const rollup: ExploreRollup = isPro ? rollupState : 'day';
+
+  const useAnalytics = isPro && needsAnalyticsApi(rollup);
 
   const lineAnalytics = useAnalyticsSeries({
     metric,
@@ -472,19 +495,30 @@ export default function ExploreScreen() {
     }
   };
 
-  const filters = (
+  const filters = isPro ? (
     <ExploreFilters
-      timeframe={timeframe}
-      onTimeframeChange={setTimeframe}
-      metric={metric}
-      onMetricChange={setMetric}
-      groupBy={groupBy}
-      onGroupByChange={setGroupBy}
-      rollup={rollup}
-      onRollupChange={setRollup}
-      chartType={chartType}
-      onChartTypeChange={setChartType}
+      timeframe={timeframeState}
+      onTimeframeChange={setTimeframeState}
+      metric={metricState}
+      onMetricChange={setMetricState}
+      groupBy={groupByState}
+      onGroupByChange={setGroupByState}
+      rollup={rollupState}
+      onRollupChange={setRollupState}
+      chartType={chartTypeState}
+      onChartTypeChange={setChartTypeState}
     />
+  ) : (
+    <Panel style={{ gap: spacing.sm }}>
+      <AppText variant="label" color={colors.limeSoft}>
+        Free explore
+      </AppText>
+      <AppText variant="title">30-day spend</AppText>
+      <AppText variant="caption">
+        Total spend over the last 30 days — upgrade for model breakdowns and custom
+        filters.
+      </AppText>
+    </Panel>
   );
 
   if (!isConnected) {
@@ -492,11 +526,12 @@ export default function ExploreScreen() {
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         style={{ flex: 1, backgroundColor: colors.bg }}
-        contentContainerStyle={{ padding: spacing.lg }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
       >
         <Panel>
           <AppText>Connect an OpenRouter key on Cockpit to open Explore.</AppText>
         </Panel>
+        <PlatformPulse />
       </ScrollView>
     );
   }
@@ -506,15 +541,22 @@ export default function ExploreScreen() {
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         style={{ flex: 1, backgroundColor: colors.bg }}
-        contentContainerStyle={{ padding: spacing.lg }}
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}
       >
         <Panel style={{ gap: spacing.sm }}>
-          <AppText variant="title">Management key required</AppText>
+          <AppText variant="title">Limited without Activity data</AppText>
           <AppText>
-            Explore needs a management key for Activity and Analytics (including
-            minute rollups).
+            Free Explore shows a 30-day spend total from your key counters. Connect a
+            Management API key for daily spend series and richer charts.
           </AppText>
+          {keyQuery.data ? (
+            <AppText variant="mono">
+              Rolling month spend · {formatMetricValue('spend', keyQuery.data.usage_monthly)}
+            </AppText>
+          ) : null}
         </Panel>
+        <ManagementKeyHint feature="Daily 30-day spend series and model dimensions." />
+        {!isPro ? <UpgradePanel title="Full Explore" description="Unlock filters, model breakdowns, and chart types." compact /> : null}
       </ScrollView>
     );
   }
@@ -547,9 +589,16 @@ export default function ExploreScreen() {
             {(activityQuery.error as Error).message}
           </AppText>
         </Panel>
-      ) : (
-        <>
-          {filters}
+          ) : (
+            <>
+              {filters}
+              {!isPro ? (
+                <UpgradePanel
+                  title="Full Explore"
+                  description="Unlock custom timeframes, metrics, rollups, and model breakdowns."
+                  compact
+                />
+              ) : null}
 
           {empty ? (
             <Panel>
@@ -689,6 +738,7 @@ export default function ExploreScreen() {
                 )}
               </Panel>
 
+              {canGroupByModel ? (
               <Panel style={{ gap: spacing.md, padding: spacing.md }}>
                 <AppText variant="title" style={{ fontSize: 16 }}>
                   {metricMeta.label} by {groupBy}
@@ -759,6 +809,13 @@ export default function ExploreScreen() {
                   </>
                 )}
               </Panel>
+              ) : (
+                <UpgradePanel
+                  title="Spend by model"
+                  description="See which models drive spend with ranked breakdowns and stacked charts."
+                  compact
+                />
+              )}
             </>
           )}
         </>

@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PropsWithChildren, useState } from 'react';
 
-import { AuthProvider } from '@/providers/auth-provider';
+import { OpenRouterProvider } from '@/providers/openrouter-provider';
+import { SessionProvider } from '@/providers/session-provider';
+import { SubscriptionProvider } from '@/providers/subscription-provider';
 
 export function AppProviders({ children }: PropsWithChildren) {
   const [client] = useState(
@@ -19,7 +21,11 @@ export function AppProviders({ children }: PropsWithChildren) {
 
   return (
     <QueryClientProvider client={client}>
-      <AuthProvider>{children}</AuthProvider>
+      <SessionProvider>
+        <SubscriptionProvider>
+          <OpenRouterProvider>{children}</OpenRouterProvider>
+        </SubscriptionProvider>
+      </SessionProvider>
     </QueryClientProvider>
   );
 }

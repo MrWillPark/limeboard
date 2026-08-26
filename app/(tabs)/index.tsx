@@ -9,14 +9,20 @@ import {
 import { Link, router } from 'expo-router';
 
 import { BalanceHero } from '@/components/cockpit/balance-hero';
+import { BurnGauge } from '@/components/cockpit/burn-gauge';
 import {
   FleetSnapshotPanel,
   SessionKeyPanel,
   TokenBreakdownPanel,
 } from '@/components/cockpit/cockpit-modules';
 import { ConnectKeyCard } from '@/components/cockpit/connect-key-card';
+import { PlatformPulse } from '@/components/cockpit/platform-pulse';
 import { SpendTrendChart } from '@/components/cockpit/spend-trend-chart';
 import { TopModelsPanel } from '@/components/cockpit/top-models-panel';
+import {
+  ManagementKeyHint,
+  UpgradePanel,
+} from '@/components/subscription/upgrade-panel';
 import { TimeframePicker } from '@/components/shared/timeframe-picker';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
@@ -29,6 +35,7 @@ import {
 } from '@/lib/analytics/burn';
 import {
   filterActivityByTimeframe,
+  computeFleetPeriodSpend,
   type TimeframeId,
 } from '@/lib/analytics/timeframe';
 import { buildTodayTrendSeries, recordTodaySpendSample } from '@/lib/analytics/today-trail';
@@ -38,11 +45,27 @@ import {
   useKeyInfo,
   useManagedKeys,
 } from '@/hooks/use-openrouter';
-import { useAuth } from '@/providers/auth-provider';
+import { useBurnRate } from '@/hooks/use-burn-rate';
+import { useEntitlement } from '@/providers/subscription-provider';
+import { useOpenRouter } from '@/providers/openrouter-provider';
+import { useSession } from '@/providers/session-provider';
+
+const FREE_TIMEFRAMES: TimeframeId[] = ['today', '7d'];
 
 export default function CockpitScreen() {
-  const { ready, isConnected, meta, maskedKey } = useAuth();
+  const { user } = useSession();
+  const { ready, isConnected, meta, maskedKey } = useOpenRouter();
+  const {
+    isPro,
+    canAccessSpendTrend,
+    canAccessTopModels,
+    canAccessTokenBreakdown,
+    canAccessFleetSnapshot,
+  } = useEntitlement();
   const [timeframe, setTimeframe] = useState<TimeframeId>('7d');
+
+  const effectiveTimeframe =
+    isPro || FREE_TIMEFRAMES.includes(timeframe) ? timeframe : '7d';
 
   const keyQuery = useKeyInfo();
   const creditsQuery = useCredits();
@@ -51,36 +74,43 @@ export default function CockpitScreen() {
 
   const activity = activityQuery.data ?? [];
   const windowActivity = useMemo(
-    () => filterActivityByTimeframe(activity, timeframe),
-    [activity, timeframe]
+    () => filterActivityByTimeframe(activity, effectiveTimeframe),
+    [activity, effectiveTimeframe]
   );
 
   const burn = useMemo(
     () =>
-      computeBurn(keyQuery.data, creditsQuery.data, activity, timeframe, {
+      computeBurn(keyQuery.data, creditsQuery.data, activity, effectiveTimeframe, {
         fleetKeys: keysQuery.data,
         isManagementKey: meta?.isManagementKey,
       }),
-    [keyQuery.data, creditsQuery.data, activity, timeframe, keysQuery.data, meta?.isManagementKey]
+    [
+      keyQuery.data,
+      creditsQuery.data,
+      activity,
+      effectiveTimeframe,
+      keysQuery.data,
+      meta?.isManagementKey,
+    ]
   );
 
   useEffect(() => {
-    if (timeframe !== 'today') return;
+    if (effectiveTimeframe !== 'today') return;
     recordTodaySpendSample(burn.periodSpend);
   }, [
-    timeframe,
+    effectiveTimeframe,
     burn.periodSpend,
     keyQuery.dataUpdatedAt,
     keysQuery.dataUpdatedAt,
   ]);
 
   const spendSeries = useMemo(() => {
-    if (timeframe === 'today') {
+    if (effectiveTimeframe === 'today') {
       return buildTodayTrendSeries(burn.periodSpend);
     }
     return dailySpendSeries(windowActivity);
   }, [
-    timeframe,
+    effectiveTimeframe,
     burn.periodSpend,
     windowActivity,
     keyQuery.dataUpdatedAt,
@@ -97,6 +127,23 @@ export default function CockpitScreen() {
     [keysQuery.data]
   );
 
+  const liveTodaySpend = useMemo(
+    () =>
+      computeFleetPeriodSpend(
+        keyQuery.data,
+        keysQuery.data,
+        Boolean(meta?.isManagementKey),
+        'today'
+      ).spend,
+    [keyQuery.data, keysQuery.data, meta?.isManagementKey]
+  );
+
+  const burnRate = useBurnRate({
+    enabled: isConnected,
+    isManagementKey: meta?.isManagementKey,
+    liveSpend: liveTodaySpend,
+  });
+
   const refreshing =
     keyQuery.isFetching ||
     creditsQuery.isFetching ||
@@ -106,6 +153,7 @@ export default function CockpitScreen() {
   const onRefresh = () => {
     keyQuery.refetch();
     creditsQuery.refetch();
+    burnRate.refetch();
     if (meta?.isManagementKey) {
       activityQuery.refetch();
       keysQuery.refetch();
@@ -121,6 +169,11 @@ export default function CockpitScreen() {
       </View>
     );
   }
+
+  const displayName =
+    user?.user_metadata?.full_name ??
+    user?.email?.split('@')[0] ??
+    'there';
 
   return (
     <ScrollView
@@ -142,13 +195,26 @@ export default function CockpitScreen() {
       }
     >
       {!isConnected ? (
-        <ConnectKeyCard />
+        <>
+          <Panel style={{ gap: spacing.sm }}>
+            <AppText variant="label" color={colors.limeSoft}>
+              Welcome back
+            </AppText>
+            <AppText variant="title">Hi {displayName}</AppText>
+            <AppText>
+              Connect your OpenRouter key to track balance, burn rate, and runway.
+              Platform-wide rankings are available below without a key.
+            </AppText>
+          </Panel>
+          <ConnectKeyCard />
+          <PlatformPulse />
+        </>
       ) : (
         <>
           {(keyQuery.isError || creditsQuery.isError) && (
             <Panel style={{ gap: spacing.sm }}>
               <AppText color={colors.amber}>
-                Couldn’t refresh OpenRouter data. Pull to retry.
+                Couldn&apos;t refresh OpenRouter data. Pull to retry.
               </AppText>
               <AppText variant="caption" selectable>
                 {String(
@@ -160,58 +226,90 @@ export default function CockpitScreen() {
             </Panel>
           )}
 
-          <TimeframePicker compact value={timeframe} onChange={setTimeframe} />
+          <TimeframePicker
+            compact
+            value={effectiveTimeframe}
+            onChange={setTimeframe}
+            allowed={isPro ? undefined : FREE_TIMEFRAMES}
+          />
 
           <BalanceHero
             burn={burn}
             series={spendSeries.map((p) => p.value)}
-            timeframe={timeframe}
+            timeframe={effectiveTimeframe}
             keyLabel={maskedKey}
             isManagementKey={meta?.isManagementKey}
           />
 
-          {meta?.isManagementKey && !activityQuery.isError ? (
-            <>
-              <SpendTrendChart
-                activity={windowActivity}
-                timeframe={timeframe}
-                total={burn.periodSpend}
-                lineSeries={spendSeries}
-                dataSource={burn.periodDataSource}
-                isManagementKey={meta?.isManagementKey}
-              />
-              <TokenBreakdownPanel burn={burn} timeframe={timeframe} />
-              <TopModelsPanel rows={topModels} timeframe={timeframe} />
-              <FleetSnapshotPanel fleet={fleet} />
-              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                <NavChip label="Full Explore →" onPress={() => router.push('/(tabs)/analytics')} />
-                <NavChip label="All keys →" onPress={() => router.push('/(tabs)/keys')} />
-              </View>
-            </>
-          ) : !meta?.isManagementKey ? (
-            <Panel style={{ gap: spacing.sm }}>
-              <AppText variant="title">Unlock account-wide charts</AppText>
-              <AppText>
-                Charts and model breakdown need a Management API key. Session key
-                stats below still reflect /key for this device.
-              </AppText>
-              <Link href="/connect" asChild>
-                <Pressable>
-                  <AppText color={colors.limeSoft}>Replace key →</AppText>
-                </Pressable>
-              </Link>
-            </Panel>
-          ) : (
+          <BurnGauge
+            snapshot={burnRate.snapshot}
+            isLoading={burnRate.isLoading}
+            isFetching={burnRate.isFetching}
+            error={burnRate.error}
+          />
+
+          {!meta?.isManagementKey ? (
+            <ManagementKeyHint feature="Spend trends and model breakdowns." />
+          ) : null}
+
+          {canAccessSpendTrend && meta?.isManagementKey && !activityQuery.isError ? (
+            <SpendTrendChart
+              activity={windowActivity}
+              timeframe={effectiveTimeframe}
+              total={burn.periodSpend}
+              lineSeries={spendSeries}
+              dataSource={burn.periodDataSource}
+              isManagementKey={meta?.isManagementKey}
+            />
+          ) : !canAccessSpendTrend ? (
+            <UpgradePanel
+              title="Spend trend"
+              description="See daily spend over time and spot burn spikes before they drain credits."
+            />
+          ) : meta?.isManagementKey && activityQuery.isError ? (
             <Panel>
               <AppText color={colors.amber}>
                 Activity unavailable — balance from /credits still shown above.
               </AppText>
             </Panel>
+          ) : null}
+
+          {canAccessTokenBreakdown && meta?.isManagementKey ? (
+            <TokenBreakdownPanel burn={burn} timeframe={effectiveTimeframe} />
+          ) : null}
+
+          {canAccessTopModels && meta?.isManagementKey ? (
+            <TopModelsPanel rows={topModels} timeframe={effectiveTimeframe} />
+          ) : !canAccessTopModels && meta?.isManagementKey ? (
+            <UpgradePanel
+              title="Top models"
+              description="See which models drive spend and where to optimize routing."
+            />
+          ) : null}
+
+          {canAccessFleetSnapshot && meta?.isManagementKey ? (
+            <FleetSnapshotPanel fleet={fleet} />
+          ) : null}
+
+          {(isPro || meta?.isManagementKey) && (
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              {isPro ? (
+                <NavChip
+                  label="Full Explore →"
+                  onPress={() => router.push('/(tabs)/analytics')}
+                />
+              ) : null}
+              {canAccessFleetSnapshot && meta?.isManagementKey ? (
+                <NavChip label="All keys →" onPress={() => router.push('/(tabs)/keys')} />
+              ) : null}
+            </View>
           )}
 
           <SessionKeyPanel burn={burn} isManagementKey={meta?.isManagementKey} />
         </>
       )}
+
+      {!isConnected ? null : <PlatformPulse compact />}
     </ScrollView>
   );
 }
