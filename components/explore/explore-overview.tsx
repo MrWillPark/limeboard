@@ -1,11 +1,9 @@
 import { View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
-import { Panel } from '@/components/ui/panel';
-import { colors, spacing } from '@/constants/theme';
+import { colors, fonts, spacing } from '@/constants/theme';
 import type { OverviewTotals } from '@/lib/analytics/explore';
 import { formatTokens, formatUsd } from '@/lib/analytics/burn';
-
 import { timeframeLabel, type TimeframeId } from '@/lib/analytics/timeframe';
 
 type Props = {
@@ -15,70 +13,88 @@ type Props = {
 };
 
 export function ExploreOverview({ totals, timeframe, liveSpend }: Props) {
+  const totalTokens = totals.promptTokens + totals.completionTokens;
+
   return (
-    <View style={{ gap: spacing.sm }}>
-      <AppText variant="label">Overview · {timeframeLabel(timeframe)}</AppText>
-      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-        <OverviewCard
+    <View style={{ gap: spacing.xs }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <AppText variant="label">Overview · {timeframeLabel(timeframe)}</AppText>
+        {liveSpend ? (
+          <AppText variant="caption" color={colors.limeSoft}>
+            Live · /key
+          </AppText>
+        ) : null}
+      </View>
+
+      <View
+        style={{
+          flexDirection: 'row',
+          borderRadius: 12,
+          borderCurve: 'continuous',
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: colors.panel,
+          overflow: 'hidden',
+        }}
+      >
+        <Kpi
           label="Spend"
           value={formatUsd(totals.spend)}
           accent
-          hint={liveSpend ? 'Live · /key' : undefined}
+          border
         />
-        <OverviewCard label="Requests" value={formatTokens(totals.requests)} />
-        <OverviewCard
-          label="Tokens"
-          value={formatTokens(totals.promptTokens + totals.completionTokens)}
-        />
+        <Kpi label="Requests" value={formatTokens(totals.requests)} border />
+        <Kpi label="Tokens" value={formatTokens(totalTokens)} />
       </View>
-      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-        <OverviewCard label="Prompt" value={formatTokens(totals.promptTokens)} compact />
-        <OverviewCard label="Completion" value={formatTokens(totals.completionTokens)} compact />
-        <OverviewCard label="Reasoning" value={formatTokens(totals.reasoningTokens)} compact />
-      </View>
-      {totals.byokSpend > 0 ? (
-        <Panel style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.md }}>
-          <AppText variant="caption">
-            BYOK inference est. {formatUsd(totals.byokSpend)} · credits above are OpenRouter spend
-          </AppText>
-        </Panel>
-      ) : null}
+
+      <AppText variant="caption" numberOfLines={1}>
+        In {formatTokens(totals.promptTokens)} · out {formatTokens(totals.completionTokens)}
+        {totals.reasoningTokens > 0
+          ? ` · reason ${formatTokens(totals.reasoningTokens)}`
+          : ''}
+        {totals.byokSpend > 0 ? ` · BYOK ${formatUsd(totals.byokSpend)}` : ''}
+      </AppText>
     </View>
   );
 }
 
-function OverviewCard({
+function Kpi({
   label,
   value,
   accent,
-  compact,
-  hint,
+  border,
 }: {
   label: string;
   value: string;
   accent?: boolean;
-  compact?: boolean;
-  hint?: string;
+  border?: boolean;
 }) {
   return (
-    <Panel
-      accent={accent}
+    <View
       style={{
         flex: 1,
-        gap: 4,
-        padding: compact ? spacing.sm : spacing.md,
+        gap: 2,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.sm,
+        borderRightWidth: border ? 1 : 0,
+        borderRightColor: colors.border,
+        backgroundColor: accent ? colors.limeDim : undefined,
       }}
     >
-      <AppText variant="label">{label}</AppText>
+      <AppText variant="label" style={{ fontSize: 10, letterSpacing: 0.6 }}>
+        {label}
+      </AppText>
       <AppText
-        variant={compact ? 'mono' : 'monoLg'}
+        variant="mono"
         selectable
-        style={compact ? { fontSize: 15 } : undefined}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
         color={accent ? colors.lime : colors.text}
+        style={{ fontSize: 15, fontFamily: fonts.monoMedium, letterSpacing: -0.3 }}
       >
         {value}
       </AppText>
-      {hint ? <AppText variant="caption">{hint}</AppText> : null}
-    </Panel>
+    </View>
   );
 }

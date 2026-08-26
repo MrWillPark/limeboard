@@ -37,31 +37,33 @@ export function ExplorePicker({ label, options, value, onChange, flex }: Props) 
   };
 
   return (
-    <View style={{ flex: flex ? 1 : undefined, minWidth: 0, gap: 4 }}>
-      <AppText variant="label">{label}</AppText>
+    <View style={{ flex: flex ? 1 : undefined, minWidth: 0, gap: 2 }}>
+      <AppText variant="label" style={{ fontSize: 10, letterSpacing: 0.5 }}>
+        {label}
+      </AppText>
       <Pressable
         onPress={() => setOpen(true)}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          gap: spacing.xs,
-          paddingHorizontal: spacing.sm,
-          paddingVertical: 10,
+          gap: 2,
+          paddingHorizontal: 6,
+          paddingVertical: 8,
           borderRadius: radii.sm,
           borderCurve: 'continuous',
           borderWidth: 1,
           borderColor: colors.borderStrong,
           backgroundColor: colors.bgElevated,
-          minHeight: 40,
+          minHeight: 34,
         }}
       >
         <AppText
           numberOfLines={1}
-          style={{ flex: 1, fontSize: 13, color: colors.text }}
+          style={{ flex: 1, fontSize: 12, color: colors.text }}
         >
           {selected?.label ?? 'Select'}
         </AppText>
-        <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+        <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
       </Pressable>
 
       <Modal

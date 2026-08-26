@@ -1,10 +1,9 @@
 import { View } from 'react-native';
 
 import { ExplorePicker } from '@/components/explore/explore-picker';
-import { TimeframeCaption } from '@/components/shared/timeframe-caption';
 import { TimeframePicker } from '@/components/shared/timeframe-picker';
-import { Panel } from '@/components/ui/panel';
-import { spacing } from '@/constants/theme';
+import { AppText } from '@/components/ui/app-text';
+import { colors, spacing } from '@/constants/theme';
 import {
   EXPLORE_GROUPS,
   EXPLORE_METRICS,
@@ -13,11 +12,11 @@ import {
   type ExploreMetric,
   type ExploreRollup,
 } from '@/lib/analytics/explore';
-import type { TimeframeId } from '@/lib/analytics/timeframe';
+import { getTimeframeDefinition, type TimeframeId } from '@/lib/analytics/timeframe';
 
 const CHART_TYPES: { id: ExploreChartType; label: string }[] = [
   { id: 'line', label: 'Line' },
-  { id: 'bar', label: 'Stacked bar' },
+  { id: 'bar', label: 'Stacked' },
 ];
 
 const ROLLUPS: { id: ExploreRollup; label: string }[] = [
@@ -50,14 +49,25 @@ export function ExploreFilters({
   chartType,
   onChartTypeChange,
 }: Props) {
+  const def = getTimeframeDefinition(timeframe);
+
   return (
-    <Panel style={{ gap: spacing.md }}>
+    <View
+      style={{
+        gap: spacing.sm,
+        padding: spacing.md,
+        borderRadius: 12,
+        borderCurve: 'continuous',
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.panel,
+      }}
+    >
       <TimeframePicker value={timeframe} onChange={onTimeframeChange} compact />
-      <TimeframeCaption
-        timeframe={timeframe}
-        dataSource={timeframe === 'today' ? 'live_key' : undefined}
-        compact
-      />
+      <AppText variant="caption" numberOfLines={1}>
+        {def.windowDescription}
+        {timeframe === 'today' ? ' · live /key' : ''}
+      </AppText>
 
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
         <ExplorePicker
@@ -69,14 +79,11 @@ export function ExploreFilters({
         />
         <ExplorePicker
           flex
-          label="Group by"
+          label="Group"
           options={EXPLORE_GROUPS.map((g) => ({ id: g.id, label: g.label }))}
           value={groupBy}
           onChange={(id) => onGroupByChange(id as ExploreGroupBy)}
         />
-      </View>
-
-      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
         <ExplorePicker
           flex
           label="Rollup"
@@ -92,6 +99,6 @@ export function ExploreFilters({
           onChange={(id) => onChartTypeChange(id as ExploreChartType)}
         />
       </View>
-    </Panel>
+    </View>
   );
 }

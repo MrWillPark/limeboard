@@ -38,7 +38,7 @@ export function TimeframePicker({ value, onChange, compact }: Props) {
                 borderWidth: 1,
                 borderColor: active ? colors.limeGlow : colors.borderStrong,
                 backgroundColor: active ? colors.limeDim : colors.bgElevated,
-                minHeight: compact ? 40 : undefined,
+                minHeight: compact ? 34 : undefined,
               }}
             >
               <AppText

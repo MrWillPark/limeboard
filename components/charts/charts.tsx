@@ -169,19 +169,33 @@ type HorizontalBarProps = {
   rows: { label: string; value: number; share: number; color: string }[];
   formatValue: (n: number) => string;
   maxRows?: number;
+  /** Tighter rows for Explore breakdown */
+  compact?: boolean;
 };
 
-export function HorizontalBarChart({ rows, formatValue, maxRows = 8 }: HorizontalBarProps) {
+export function HorizontalBarChart({
+  rows,
+  formatValue,
+  maxRows = 8,
+  compact,
+}: HorizontalBarProps) {
   const shown = rows.slice(0, maxRows);
   const max = Math.max(...shown.map((r) => r.value), 0.0001);
 
   return (
-    <View style={{ gap: spacing.md }}>
+    <View style={{ gap: compact ? spacing.sm : spacing.md }}>
       {shown.map((row) => (
-        <View key={row.label} style={{ gap: 4 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm }}>
-            <AppText variant="body" numberOfLines={1} style={{ flex: 1, color: colors.text }}>
+        <View key={row.label} style={{ gap: compact ? 3 : 4 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, alignItems: 'baseline' }}>
+            <AppText
+              variant="body"
+              numberOfLines={1}
+              style={{ flex: 1, color: colors.text, fontSize: compact ? 13 : 15, lineHeight: compact ? 18 : 22 }}
+            >
               {row.label}
+            </AppText>
+            <AppText variant="caption" style={{ fontSize: 11 }}>
+              {(row.share * 100).toFixed(0)}%
             </AppText>
             <AppText variant="mono" selectable style={{ fontSize: 13, color: colors.limeSoft }}>
               {formatValue(row.value)}
@@ -189,7 +203,7 @@ export function HorizontalBarChart({ rows, formatValue, maxRows = 8 }: Horizonta
           </View>
           <View
             style={{
-              height: 8,
+              height: compact ? 5 : 8,
               borderRadius: 999,
               backgroundColor: colors.border,
               overflow: 'hidden',
@@ -204,7 +218,6 @@ export function HorizontalBarChart({ rows, formatValue, maxRows = 8 }: Horizonta
               }}
             />
           </View>
-          <AppText variant="caption">{(row.share * 100).toFixed(1)}% of total</AppText>
         </View>
       ))}
     </View>

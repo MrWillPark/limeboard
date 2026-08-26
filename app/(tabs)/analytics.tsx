@@ -62,6 +62,7 @@ export default function ExploreScreen() {
     );
     return { ...base, spend: live.spend };
   }, [activity, timeframe, keyQuery.data, keysQuery.data, meta?.isManagementKey]);
+
   const ranked = useMemo(
     () => aggregateRanked(activity, metric, groupBy),
     [activity, metric, groupBy]
@@ -86,8 +87,12 @@ export default function ExploreScreen() {
 
   const metricMeta = EXPLORE_METRICS.find((m) => m.id === metric)!;
   const formatValue = (n: number) => formatMetricValue(metric, n);
+  const seriesTotal = useMemo(
+    () => timeSeries.reduce((s, p) => s + p.value, 0),
+    [timeSeries]
+  );
 
-  const donutSlices = ranked.slice(0, 6).map((row, i) => ({
+  const donutSlices = ranked.slice(0, 5).map((row, i) => ({
     value: row.value,
     color: colors.chart[i % colors.chart.length],
   }));
@@ -100,6 +105,22 @@ export default function ExploreScreen() {
   }));
 
   const bucketLabels = timeSeries.map((p) => formatBucketLabel(p.bucket, rollup));
+  const empty = activity.length === 0 && timeframe !== 'today';
+
+  const filters = (
+    <ExploreFilters
+      timeframe={timeframe}
+      onTimeframeChange={setTimeframe}
+      metric={metric}
+      onMetricChange={setMetric}
+      groupBy={groupBy}
+      onGroupByChange={setGroupBy}
+      rollup={rollup}
+      onRollupChange={setRollup}
+      chartType={chartType}
+      onChartTypeChange={setChartType}
+    />
+  );
 
   if (!isConnected) {
     return (
@@ -137,7 +158,7 @@ export default function ExploreScreen() {
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: 48 }}
+      contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 48 }}
       refreshControl={
         <RefreshControl
           refreshing={activityQuery.isFetching}
@@ -146,13 +167,7 @@ export default function ExploreScreen() {
         />
       }
     >
-      <View style={{ gap: 6 }}>
-        <AppText variant="display">Explore</AppText>
-        <AppText>
-          Slice OpenRouter usage like the Activity explorer — pivot timeframe,
-          metric, group-by, and rollup.
-        </AppText>
-      </View>
+      <AppText variant="display">Explore</AppText>
 
       {activityQuery.isLoading ? (
         <ActivityIndicator color={colors.lime} />
@@ -162,135 +177,128 @@ export default function ExploreScreen() {
             {(activityQuery.error as Error).message}
           </AppText>
         </Panel>
-      ) : activity.length === 0 && timeframe !== 'today' ? (
-        <Panel>
-          <AppText>No activity in {timeframeLabel(timeframe).toLowerCase()}.</AppText>
-        </Panel>
       ) : (
         <>
-          <ExploreOverview totals={overview} timeframe={timeframe} liveSpend={timeframe === 'today'} />
+          {filters}
 
-          <ExploreFilters
-            timeframe={timeframe}
-            onTimeframeChange={setTimeframe}
-            metric={metric}
-            onMetricChange={setMetric}
-            groupBy={groupBy}
-            onGroupByChange={setGroupBy}
-            rollup={rollup}
-            onRollupChange={setRollup}
-            chartType={chartType}
-            onChartTypeChange={setChartType}
-          />
-
-          <Panel style={{ gap: spacing.md }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <AppText variant="title">
-                {metricMeta.label} over time
-              </AppText>
-              <AppText variant="mono" selectable color={colors.lime}>
-                {formatValue(timeSeries.reduce((s, p) => s + p.value, 0))}
-              </AppText>
-            </View>
-
-            {chartType === 'line' ? (
-              <LineChart
-                values={timeSeries.map((p) => p.value)}
-                labels={bucketLabels}
+          {empty ? (
+            <Panel>
+              <AppText>No activity in {timeframeLabel(timeframe).toLowerCase()}.</AppText>
+            </Panel>
+          ) : (
+            <>
+              <ExploreOverview
+                totals={overview}
+                timeframe={timeframe}
+                liveSpend={timeframe === 'today'}
               />
-            ) : (
-              <>
-                <StackedBarChart
-                  buckets={stacked.buckets}
-                  series={stacked.series}
-                  bucketLabels={stacked.buckets.map((b) => formatBucketLabel(b, rollup))}
-                />
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-                  {stacked.series.map((ser) => (
-                    <View key={ser.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <View
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: 2,
-                          backgroundColor: ser.color,
-                        }}
-                      />
-                      <AppText variant="caption" numberOfLines={1}>
-                        {ser.key === '__other__'
-                          ? 'Other'
-                          : groupBy === 'model'
-                            ? shortModelName(ser.key)
-                            : ser.key}
-                      </AppText>
-                    </View>
-                  ))}
-                </View>
-              </>
-            )}
-          </Panel>
 
-          <Panel style={{ gap: spacing.lg }}>
-            <AppText variant="title">
-              {metricMeta.label} by {groupBy}
-            </AppText>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xl }}>
-              <Donut slices={donutSlices} />
-              <View style={{ flex: 1, gap: spacing.xs }}>
-                {ranked.slice(0, 4).map((row, i) => (
-                  <View key={row.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Panel style={{ gap: spacing.sm, padding: spacing.md }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <AppText variant="title" style={{ fontSize: 16 }}>
+                    {metricMeta.label} over time
+                  </AppText>
+                  <AppText variant="mono" selectable color={colors.lime} style={{ fontSize: 13 }}>
+                    {formatValue(seriesTotal)}
+                  </AppText>
+                </View>
+
+                {chartType === 'line' ? (
+                  <LineChart
+                    values={timeSeries.map((p) => p.value)}
+                    labels={bucketLabels}
+                    height={132}
+                  />
+                ) : (
+                  <>
+                    <StackedBarChart
+                      buckets={stacked.buckets}
+                      series={stacked.series}
+                      height={132}
+                      bucketLabels={stacked.buckets.map((b) =>
+                        formatBucketLabel(b, rollup)
+                      )}
+                    />
                     <View
                       style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 999,
-                        backgroundColor: colors.chart[i % colors.chart.length],
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        gap: spacing.sm,
                       }}
-                    />
-                    <AppText variant="caption" numberOfLines={1} style={{ flex: 1 }}>
-                      {groupBy === 'model' ? shortModelName(row.label) : row.label}
-                    </AppText>
-                    <AppText variant="mono" selectable style={{ fontSize: 12 }}>
-                      {(row.share * 100).toFixed(0)}%
-                    </AppText>
-                  </View>
-                ))}
-              </View>
-            </View>
-            <HorizontalBarChart rows={barRows} formatValue={formatValue} />
-          </Panel>
+                    >
+                      {stacked.series.map((ser) => (
+                        <View
+                          key={ser.key}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                        >
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 2,
+                              backgroundColor: ser.color,
+                            }}
+                          />
+                          <AppText variant="caption" numberOfLines={1}>
+                            {ser.key === '__other__'
+                              ? 'Other'
+                              : groupBy === 'model'
+                                ? shortModelName(ser.key)
+                                : ser.key}
+                          </AppText>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                )}
+              </Panel>
 
-          <Panel style={{ gap: spacing.sm }}>
-            <AppText variant="label">Ranked table</AppText>
-            {ranked.slice(0, 12).map((row, index) => (
-              <View
-                key={row.key}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: spacing.sm,
-                  paddingVertical: spacing.sm,
-                  borderTopWidth: index === 0 ? 0 : 1,
-                  borderTopColor: colors.border,
-                }}
-              >
-                <AppText variant="caption" style={{ width: 22, color: colors.textMuted }}>
-                  {index + 1}
+              <Panel style={{ gap: spacing.md, padding: spacing.md }}>
+                <AppText variant="title" style={{ fontSize: 16 }}>
+                  {metricMeta.label} by {groupBy}
                 </AppText>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <AppText variant="body" numberOfLines={1} selectable>
-                    {groupBy === 'model' ? shortModelName(row.label) : row.label}
-                  </AppText>
-                  <AppText variant="caption">
-                    {row.requests} req · {formatMetricValue('prompt_tokens', row.promptTokens)} in
-                  </AppText>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: spacing.md,
+                  }}
+                >
+                  <Donut slices={donutSlices} size={96} strokeWidth={14} />
+                  <View style={{ flex: 1, gap: 6 }}>
+                    {ranked.slice(0, 4).map((row, i) => (
+                      <View
+                        key={row.key}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                      >
+                        <View
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: 999,
+                            backgroundColor: colors.chart[i % colors.chart.length],
+                          }}
+                        />
+                        <AppText variant="caption" numberOfLines={1} style={{ flex: 1, color: colors.text }}>
+                          {groupBy === 'model' ? shortModelName(row.label) : row.label}
+                        </AppText>
+                        <AppText variant="mono" selectable style={{ fontSize: 11, color: colors.limeSoft }}>
+                          {formatValue(row.value)}
+                        </AppText>
+                      </View>
+                    ))}
+                  </View>
                 </View>
-                <AppText variant="mono" selectable color={colors.limeSoft}>
-                  {formatValue(row.value)}
-                </AppText>
-              </View>
-            ))}
-          </Panel>
+                <HorizontalBarChart rows={barRows} formatValue={formatValue} maxRows={6} compact />
+              </Panel>
+            </>
+          )}
         </>
       )}
     </ScrollView>
