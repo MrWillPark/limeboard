@@ -41,5 +41,13 @@
     "ios": "expo start --ios",
     "web": "expo start --web"
   },
+  "expo": {
+    "install": {
+      "exclude": [
+        "react-native-reanimated",
+        "react-native-worklets"
+      ]
+    }
+  },
   "private": true
 }
