@@ -17,7 +17,6 @@ import {
 import { ConnectKeyCard } from '@/components/cockpit/connect-key-card';
 import { SpendTrendChart } from '@/components/cockpit/spend-trend-chart';
 import { TopModelsPanel } from '@/components/cockpit/top-models-panel';
-import { TimeframeCaption } from '@/components/shared/timeframe-caption';
 import { TimeframePicker } from '@/components/shared/timeframe-picker';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
@@ -161,8 +160,7 @@ export default function CockpitScreen() {
             </Panel>
           )}
 
-          <TimeframePicker value={timeframe} onChange={setTimeframe} />
-          <TimeframeCaption timeframe={timeframe} dataSource={burn.periodDataSource} />
+          <TimeframePicker compact value={timeframe} onChange={setTimeframe} />
 
           <BalanceHero
             burn={burn}
@@ -175,9 +173,10 @@ export default function CockpitScreen() {
           {meta?.isManagementKey && !activityQuery.isError ? (
             <>
               <SpendTrendChart
-                series={spendSeries}
+                activity={windowActivity}
                 timeframe={timeframe}
                 total={burn.periodSpend}
+                lineSeries={spendSeries}
                 dataSource={burn.periodDataSource}
               />
               <TokenBreakdownPanel burn={burn} timeframe={timeframe} />
