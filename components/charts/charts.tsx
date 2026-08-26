@@ -121,8 +121,8 @@ export function StackedBarChart({
   const max = Math.max(...totals, 0.0001);
   const innerW = width - PAD.left - PAD.right;
   const innerH = height - PAD.top - PAD.bottom;
-  const gap = count > 14 ? 1 : 4;
-  const barW = Math.max(4, (innerW - gap * (count - 1)) / count);
+  const gap = count > 90 ? 0 : count > 40 ? 1 : count > 14 ? 2 : 4;
+  const barW = Math.max(1.5, (innerW - gap * Math.max(count - 1, 0)) / count);
 
   return (
     <View style={{ gap: spacing.sm }}>

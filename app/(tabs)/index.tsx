@@ -142,14 +142,6 @@ export default function CockpitScreen() {
         ) : undefined
       }
     >
-      <View style={{ gap: 6 }}>
-        <AppText variant="display">Cockpit</AppText>
-        <AppText>
-          Account burn radar — balance from credits, spend from activity, session
-          key limits kept separate.
-        </AppText>
-      </View>
-
       {!isConnected ? (
         <ConnectKeyCard />
       ) : (

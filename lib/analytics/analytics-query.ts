@@ -193,3 +193,93 @@ export function formatAnalyticsBucketLabel(
 
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+
+/** Floor a timestamp to the granularity bucket start (UTC ms). */
+export function bucketStartMs(
+  isoOrMs: string | number,
+  granularity: 'minute' | 'hour'
+): number {
+  const t = typeof isoOrMs === 'number' ? isoOrMs : new Date(isoOrMs).getTime();
+  if (!Number.isFinite(t)) return NaN;
+  const step = granularity === 'minute' ? 60_000 : 3_600_000;
+  return Math.floor(t / step) * step;
+}
+
+/**
+ * OpenRouter only returns buckets with activity. Pad zeros across the window
+ * so a 3h minute chart shows the full timeline (up to 180 points).
+ */
+export function fillTimeSeriesGaps(
+  points: AnalyticsSeriesPoint[],
+  granularity: NonNullable<AnalyticsQueryBody['granularity']>,
+  startIso: string,
+  endIso: string
+): AnalyticsSeriesPoint[] {
+  if (granularity !== 'minute' && granularity !== 'hour') return points;
+
+  const step = granularity === 'minute' ? 60_000 : 3_600_000;
+  const start = bucketStartMs(startIso, granularity);
+  const end = bucketStartMs(endIso, granularity);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+    return points;
+  }
+
+  const byMs = new Map<number, number>();
+  for (const p of points) {
+    const ms = bucketStartMs(p.bucket, granularity);
+    if (!Number.isFinite(ms)) continue;
+    byMs.set(ms, (byMs.get(ms) ?? 0) + p.value);
+  }
+
+  const filled: AnalyticsSeriesPoint[] = [];
+  for (let t = start; t <= end; t += step) {
+    const iso = new Date(t).toISOString();
+    filled.push({
+      bucket: iso,
+      value: byMs.get(t) ?? 0,
+      label: formatAnalyticsBucketLabel(iso, granularity),
+    });
+  }
+  return filled;
+}
+
+/** Zero-fill stacked series buckets across the full window. */
+export function fillStackedGaps(
+  data: { buckets: string[]; series: { key: string; values: number[] }[] },
+  granularity: NonNullable<AnalyticsQueryBody['granularity']>,
+  startIso: string,
+  endIso: string
+): { buckets: string[]; series: { key: string; values: number[] }[] } {
+  if (granularity !== 'minute' && granularity !== 'hour') return data;
+  if (data.series.length === 0) {
+    // Still emit empty timeline so UI can show the window
+    const empty = fillTimeSeriesGaps([], granularity, startIso, endIso);
+    return { buckets: empty.map((p) => p.bucket), series: [] };
+  }
+
+  const step = granularity === 'minute' ? 60_000 : 3_600_000;
+  const start = bucketStartMs(startIso, granularity);
+  const end = bucketStartMs(endIso, granularity);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+    return data;
+  }
+
+  const indexByMs = new Map<number, number>();
+  data.buckets.forEach((b, i) => {
+    const ms = bucketStartMs(b, granularity);
+    if (Number.isFinite(ms)) indexByMs.set(ms, i);
+  });
+
+  const buckets: string[] = [];
+  const series = data.series.map((s) => ({ key: s.key, values: [] as number[] }));
+
+  for (let t = start; t <= end; t += step) {
+    buckets.push(new Date(t).toISOString());
+    const srcIdx = indexByMs.get(t);
+    data.series.forEach((s, si) => {
+      series[si].values.push(srcIdx == null ? 0 : (s.values[srcIdx] ?? 0));
+    });
+  }
+
+  return { buckets, series };
+}

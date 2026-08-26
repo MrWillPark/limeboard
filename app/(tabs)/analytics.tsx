@@ -13,6 +13,8 @@ import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
 import { colors, spacing } from '@/constants/theme';
 import {
+  fillStackedGaps,
+  fillTimeSeriesGaps,
   needsAnalyticsApi,
   rowsToStackedSeries,
   rowsToTimeSeries,
@@ -128,10 +130,16 @@ export default function ExploreScreen() {
 
   const timeSeries = useMemo(() => {
     if (useAnalytics && lineAnalytics.data) {
-      return rowsToTimeSeries(
+      const raw = rowsToTimeSeries(
         lineAnalytics.data.data,
         lineAnalytics.data.metricId,
         lineAnalytics.data.granularity
+      );
+      return fillTimeSeriesGaps(
+        raw,
+        lineAnalytics.data.granularity,
+        lineAnalytics.data.rangeStart,
+        lineAnalytics.data.rangeEnd
       );
     }
     if (todayTrail) {
@@ -157,9 +165,15 @@ export default function ExploreScreen() {
         stackedAnalytics.data.granularity,
         5
       );
+      const filled = fillStackedGaps(
+        raw,
+        stackedAnalytics.data.granularity,
+        stackedAnalytics.data.rangeStart,
+        stackedAnalytics.data.rangeEnd
+      );
       return {
-        ...raw,
-        series: raw.series.map((s, i) => ({
+        ...filled,
+        series: filled.series.map((s, i) => ({
           ...s,
           color:
             s.key === '__other__'
@@ -399,7 +413,13 @@ export default function ExploreScreen() {
                     </View>
                     {useAnalytics ? (
                       <AppText variant="caption">
-                        {rollup === 'minute' ? 'Minute' : 'Hour'} buckets · Analytics API
+                        {rollup === 'minute' ? 'Minute' : 'Hour'} buckets · stacked by{' '}
+                        {groupBy} · Analytics API
+                        {stacked.buckets.length > 0
+                          ? ` · ${stacked.buckets.filter((_, i) =>
+                              stacked.series.some((s) => (s.values[i] ?? 0) > 0)
+                            ).length}/${stacked.buckets.length} active`
+                          : ''}
                       </AppText>
                     ) : null}
                   </>
@@ -414,6 +434,9 @@ export default function ExploreScreen() {
                     {useAnalytics ? (
                       <AppText variant="caption">
                         {rollup === 'minute' ? 'Minute' : 'Hour'} buckets · Analytics API
+                        {timeSeries.length > 0
+                          ? ` · ${timeSeries.filter((p) => p.value > 0).length}/${timeSeries.length} active`
+                          : ''}
                       </AppText>
                     ) : timeframe === 'today' ? (
                       <AppText variant="caption">

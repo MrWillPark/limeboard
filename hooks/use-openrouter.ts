@@ -114,6 +114,8 @@ export function useAnalyticsSeries({
       return {
         ...result,
         rangeNote: range.note,
+        rangeStart: range.start,
+        rangeEnd: range.end,
         metricId,
         dimension,
         granularity,
