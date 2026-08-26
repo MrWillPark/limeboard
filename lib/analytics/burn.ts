@@ -3,9 +3,11 @@ import type { ActivityItem, CreditsInfo, KeyInfo, ManagedKey } from '@/lib/openr
 import {
   computeLiveTodaySpend,
   filterActivityByTimeframe,
+  formatDayKeyLabel,
   getTimeframeDefinition,
   localDateString,
   localHoursElapsedToday,
+  normalizeDayKey,
   periodDayCount,
   type TimeframeId,
 } from '@/lib/analytics/timeframe';
@@ -190,7 +192,9 @@ export function dailySpendSeries(
 ): { date: string; value: number }[] {
   const byDate = new Map<string, number>();
   for (const row of activity) {
-    byDate.set(row.date, (byDate.get(row.date) ?? 0) + row.usage);
+    const day = normalizeDayKey(row.date);
+    if (!day) continue;
+    byDate.set(day, (byDate.get(day) ?? 0) + row.usage);
   }
   return [...byDate.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
@@ -255,6 +259,5 @@ export function formatShortDate(date: Date | null): string {
 }
 
 export function formatChartDate(date: string): string {
-  const d = new Date(`${date}T00:00:00Z`);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return formatDayKeyLabel(date);
 }

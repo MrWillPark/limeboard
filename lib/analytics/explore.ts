@@ -1,5 +1,7 @@
 import type { ActivityItem } from '@/lib/openrouter/types';
 
+import { formatDayKeyLabel, normalizeDayKey } from '@/lib/analytics/timeframe';
+
 export type ExploreMetric =
   | 'spend'
   | 'requests'
@@ -52,10 +54,14 @@ export function groupKey(row: ActivityItem, groupBy: ExploreGroupBy): string {
 }
 
 function rollupDate(date: string, rollup: ExploreRollup): string {
-  if (rollup === 'day') return date;
-  const d = new Date(`${date}T00:00:00Z`);
-  const day = d.getUTCDay();
-  const diff = day === 0 ? -6 : 1 - day;
+  const day = normalizeDayKey(date);
+  if (!day) return date;
+  if (rollup === 'day') return day;
+
+  const [year, month, dayNum] = day.split('-').map(Number);
+  const d = new Date(Date.UTC(year, month - 1, dayNum));
+  const dow = d.getUTCDay();
+  const diff = dow === 0 ? -6 : 1 - dow;
   d.setUTCDate(d.getUTCDate() + diff);
   return d.toISOString().slice(0, 10);
 }
@@ -222,13 +228,8 @@ export function formatMetricValue(metric: ExploreMetric, value: number): string 
   return String(Math.round(value));
 }
 
-export function formatBucketLabel(bucket: string, rollup: ExploreRollup): string {
-  if (rollup === 'week') {
-    const d = new Date(`${bucket}T00:00:00Z`);
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }
-  const d = new Date(`${bucket}T00:00:00Z`);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+export function formatBucketLabel(bucket: string, _rollup: ExploreRollup): string {
+  return formatDayKeyLabel(bucket);
 }
 
 export function shortModelName(model: string): string {

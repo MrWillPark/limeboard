@@ -33,6 +33,35 @@ export function localTimeLabel(date = new Date()): string {
   return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
+/** Normalize OpenRouter activity `date` values to YYYY-MM-DD. */
+export function normalizeDayKey(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const trimmed = String(raw).trim();
+  if (!trimmed) return null;
+
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
+/** Chart / axis label for a UTC day key or OpenRouter activity date string. */
+export function formatDayKeyLabel(raw: string | null | undefined): string {
+  const key = normalizeDayKey(raw);
+  if (!key) return '—';
+
+  const [year, month, day] = key.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime())) return '—';
+
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 export type TimeframeDefinition = {
   id: TimeframeId;
   label: string;
@@ -103,25 +132,33 @@ export function filterActivityByTimeframe(
   if (timeframe === '30d') {
     const start = localDaysAgo(29);
     const end = localDateString();
-    return activity.filter((row) => row.date >= start && row.date <= end);
+    return activity.filter((row) => {
+      const day = normalizeDayKey(row.date);
+      return day != null && day >= start && day <= end;
+    });
   }
 
   if (timeframe === '7d') {
     const start = localDaysAgo(6);
     const end = localDateString();
-    return activity.filter((row) => row.date >= start && row.date <= end);
+    return activity.filter((row) => {
+      const day = normalizeDayKey(row.date);
+      return day != null && day >= start && day <= end;
+    });
   }
 
   // Today: activity rarely includes the in-progress day; keep any row tagged local today.
   const today = localDateString();
-  return activity.filter((row) => row.date === today);
+  return activity.filter((row) => normalizeDayKey(row.date) === today);
 }
 
 export function periodDayCount(timeframe: TimeframeId, activity: ActivityItem[]): number {
   if (timeframe === 'today') return 1;
 
   const filtered = filterActivityByTimeframe(activity, timeframe);
-  const dates = new Set(filtered.map((r) => r.date));
+  const dates = new Set(
+    filtered.map((r) => normalizeDayKey(r.date)).filter((d): d is string => d != null)
+  );
   if (dates.size > 0) return dates.size;
   if (timeframe === '7d') return 7;
   return 30;
