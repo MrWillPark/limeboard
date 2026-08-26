@@ -9,6 +9,7 @@ import {
 } from '@/components/charts/charts';
 import { ExploreOverview } from '@/components/explore/explore-overview';
 import { ExplorePicker } from '@/components/explore/explore-picker';
+import { TimeframePicker } from '@/components/shared/timeframe-picker';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
 import { colors, spacing } from '@/constants/theme';
@@ -27,6 +28,11 @@ import {
   type ExploreMetric,
   type ExploreRollup,
 } from '@/lib/analytics/explore';
+import {
+  filterActivityByTimeframe,
+  timeframeLabel,
+  type TimeframeId,
+} from '@/lib/analytics/timeframe';
 import { useActivity } from '@/hooks/use-openrouter';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -44,12 +50,16 @@ export default function ExploreScreen() {
   const { isConnected, meta } = useAuth();
   const activityQuery = useActivity();
 
+  const [timeframe, setTimeframe] = useState<TimeframeId>('30d');
   const [metric, setMetric] = useState<ExploreMetric>('spend');
   const [groupBy, setGroupBy] = useState<ExploreGroupBy>('model');
   const [chartType, setChartType] = useState<ExploreChartType>('line');
   const [rollup, setRollup] = useState<ExploreRollup>('day');
 
-  const activity = activityQuery.data ?? [];
+  const activity = useMemo(
+    () => filterActivityByTimeframe(activityQuery.data ?? [], timeframe),
+    [activityQuery.data, timeframe]
+  );
 
   const overview = useMemo(() => computeOverview(activity), [activity]);
   const ranked = useMemo(
@@ -139,8 +149,8 @@ export default function ExploreScreen() {
       <View style={{ gap: 6 }}>
         <AppText variant="display">Explore</AppText>
         <AppText>
-          Slice OpenRouter usage like the Activity explorer — pick a metric,
-          group dimension, and rollup.
+          Slice OpenRouter usage like the Activity explorer — pivot timeframe,
+          metric, group-by, and rollup.
         </AppText>
       </View>
 
@@ -154,13 +164,17 @@ export default function ExploreScreen() {
         </Panel>
       ) : activity.length === 0 ? (
         <Panel>
-          <AppText>No activity in the last 30 days.</AppText>
+          <AppText>No activity in {timeframeLabel(timeframe).toLowerCase()}.</AppText>
         </Panel>
       ) : (
         <>
-          <ExploreOverview totals={overview} />
+          <ExploreOverview totals={overview} timeframe={timeframe} />
 
           <Panel style={{ gap: spacing.lg }}>
+            <TimeframePicker value={timeframe} onChange={setTimeframe} />
+            <AppText variant="caption">
+              Showing {timeframeLabel(timeframe)} · activity API max ~30 UTC days
+            </AppText>
             <ExplorePicker
               label="Metric"
               options={EXPLORE_METRICS.map((m) => ({ id: m.id, label: m.label }))}

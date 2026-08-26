@@ -6,14 +6,17 @@ import { colors, spacing } from '@/constants/theme';
 import type { OverviewTotals } from '@/lib/analytics/explore';
 import { formatTokens, formatUsd } from '@/lib/analytics/burn';
 
+import { timeframeLabel, type TimeframeId } from '@/lib/analytics/timeframe';
+
 type Props = {
   totals: OverviewTotals;
+  timeframe: TimeframeId;
 };
 
-export function ExploreOverview({ totals }: Props) {
+export function ExploreOverview({ totals, timeframe }: Props) {
   return (
     <View style={{ gap: spacing.sm }}>
-      <AppText variant="label">Overview · last 30 days</AppText>
+      <AppText variant="label">Overview · {timeframeLabel(timeframe)}</AppText>
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
         <OverviewCard label="Spend" value={formatUsd(totals.spend)} accent />
         <OverviewCard label="Requests" value={formatTokens(totals.requests)} />

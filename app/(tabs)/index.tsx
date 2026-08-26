@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -6,58 +6,94 @@ import {
   ScrollView,
   View,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 
 import { BalanceHero } from '@/components/cockpit/balance-hero';
+import {
+  FleetSnapshotPanel,
+  SessionKeyPanel,
+  TokenBreakdownPanel,
+} from '@/components/cockpit/cockpit-modules';
 import { ConnectKeyCard } from '@/components/cockpit/connect-key-card';
+import { SpendTrendChart } from '@/components/cockpit/spend-trend-chart';
+import { TopModelsPanel } from '@/components/cockpit/top-models-panel';
+import { TimeframePicker } from '@/components/shared/timeframe-picker';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
 import { colors, spacing } from '@/constants/theme';
 import {
+  aggregateByModel,
   computeBurn,
+  computeFleetSnapshot,
   dailySpendSeries,
-  formatUsd,
 } from '@/lib/analytics/burn';
+import {
+  filterActivityByTimeframe,
+  type TimeframeId,
+} from '@/lib/analytics/timeframe';
 import {
   useActivity,
   useCredits,
   useKeyInfo,
+  useManagedKeys,
 } from '@/hooks/use-openrouter';
 import { useAuth } from '@/providers/auth-provider';
 
 export default function CockpitScreen() {
   const { ready, isConnected, meta, maskedKey } = useAuth();
+  const [timeframe, setTimeframe] = useState<TimeframeId>('7d');
+
   const keyQuery = useKeyInfo();
   const creditsQuery = useCredits();
   const activityQuery = useActivity();
+  const keysQuery = useManagedKeys();
+
+  const activity = activityQuery.data ?? [];
+  const windowActivity = useMemo(
+    () => filterActivityByTimeframe(activity, timeframe),
+    [activity, timeframe]
+  );
+
+  const burn = useMemo(
+    () => computeBurn(keyQuery.data, creditsQuery.data, activity, timeframe),
+    [keyQuery.data, creditsQuery.data, activity, timeframe]
+  );
+
+  const spendSeries = useMemo(
+    () => dailySpendSeries(windowActivity),
+    [windowActivity]
+  );
+
+  const topModels = useMemo(
+    () => aggregateByModel(windowActivity),
+    [windowActivity]
+  );
+
+  const fleet = useMemo(
+    () => computeFleetSnapshot(keysQuery.data),
+    [keysQuery.data]
+  );
 
   const refreshing =
-    keyQuery.isFetching || creditsQuery.isFetching || activityQuery.isFetching;
+    keyQuery.isFetching ||
+    creditsQuery.isFetching ||
+    activityQuery.isFetching ||
+    keysQuery.isFetching;
 
   const onRefresh = () => {
     keyQuery.refetch();
     creditsQuery.refetch();
-    if (meta?.isManagementKey) activityQuery.refetch();
+    if (meta?.isManagementKey) {
+      activityQuery.refetch();
+      keysQuery.refetch();
+    }
   };
-
-  const burn = useMemo(
-    () =>
-      computeBurn(
-        keyQuery.data,
-        creditsQuery.data,
-        activityQuery.data ?? []
-      ),
-    [keyQuery.data, creditsQuery.data, activityQuery.data]
-  );
-
-  const series = useMemo(
-    () => dailySpendSeries(activityQuery.data ?? []).map((d) => d.value),
-    [activityQuery.data]
-  );
 
   if (!ready) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center' }}>
+      <View
+        style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center' }}
+      >
         <ActivityIndicator color={colors.lime} />
       </View>
     );
@@ -67,7 +103,11 @@ export default function CockpitScreen() {
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: 40 }}
+      contentContainerStyle={{
+        padding: spacing.lg,
+        gap: spacing.lg,
+        paddingBottom: 48,
+      }}
       refreshControl={
         isConnected ? (
           <RefreshControl
@@ -79,9 +119,10 @@ export default function CockpitScreen() {
       }
     >
       <View style={{ gap: 6 }}>
-        <AppText variant="display">LimeBoard</AppText>
+        <AppText variant="display">Cockpit</AppText>
         <AppText>
-          OpenRouter burn radar — credits, velocity, and runway in one cockpit.
+          Account burn radar — balance from credits, spend from activity, session
+          key limits kept separate.
         </AppText>
       </View>
 
@@ -104,30 +145,37 @@ export default function CockpitScreen() {
             </Panel>
           )}
 
+          <TimeframePicker value={timeframe} onChange={setTimeframe} />
+
           <BalanceHero
             burn={burn}
-            series={series}
+            series={spendSeries.map((p) => p.value)}
+            timeframe={timeframe}
             keyLabel={maskedKey}
             isManagementKey={meta?.isManagementKey}
           />
 
-          <View style={{ flexDirection: 'row', gap: spacing.md }}>
-            <InsightChip
-              title="Avg daily"
-              value={formatUsd(burn.avgDailyFromActivity)}
-            />
-            <InsightChip
-              title="Limit left"
-              value={formatUsd(keyQuery.data?.limit_remaining ?? null)}
-            />
-          </View>
-
-          {!meta?.isManagementKey ? (
+          {meta?.isManagementKey && !activityQuery.isError ? (
+            <>
+              <SpendTrendChart
+                series={spendSeries}
+                timeframe={timeframe}
+                total={burn.periodSpend}
+              />
+              <TokenBreakdownPanel burn={burn} timeframe={timeframe} />
+              <TopModelsPanel rows={topModels} timeframe={timeframe} />
+              <FleetSnapshotPanel fleet={fleet} />
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <NavChip label="Full Explore →" onPress={() => router.push('/(tabs)/analytics')} />
+                <NavChip label="All keys →" onPress={() => router.push('/(tabs)/keys')} />
+              </View>
+            </>
+          ) : !meta?.isManagementKey ? (
             <Panel style={{ gap: spacing.sm }}>
-              <AppText variant="title">Unlock full telemetry</AppText>
+              <AppText variant="title">Unlock account-wide charts</AppText>
               <AppText>
-                You’re on a standard API key. Swap in a Management API key to
-                pull 30-day model activity and the keys fleet.
+                Charts and model breakdown need a Management API key. Session key
+                stats below still reflect /key for this device.
               </AppText>
               <Link href="/connect" asChild>
                 <Pressable>
@@ -135,27 +183,38 @@ export default function CockpitScreen() {
                 </Pressable>
               </Link>
             </Panel>
-          ) : activityQuery.isError ? (
+          ) : (
             <Panel>
               <AppText color={colors.amber}>
-                Activity endpoint unavailable for this key. Balance metrics still
-                work from /key and /credits.
+                Activity unavailable — balance from /credits still shown above.
               </AppText>
             </Panel>
-          ) : null}
+          )}
+
+          <SessionKeyPanel burn={burn} isManagementKey={meta?.isManagementKey} />
         </>
       )}
     </ScrollView>
   );
 }
 
-function InsightChip({ title, value }: { title: string; value: string }) {
+function NavChip({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <Panel style={{ flex: 1, gap: 4 }}>
-      <AppText variant="label">{title}</AppText>
-      <AppText variant="mono" selectable style={{ fontSize: 18, color: colors.limeSoft }}>
-        {value}
-      </AppText>
-    </Panel>
+    <Pressable
+      onPress={onPress}
+      style={{
+        flex: 1,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
+        borderRadius: 12,
+        borderCurve: 'continuous',
+        borderWidth: 1,
+        borderColor: colors.borderStrong,
+        backgroundColor: colors.panel,
+        alignItems: 'center',
+      }}
+    >
+      <AppText color={colors.lime}>{label}</AppText>
+    </Pressable>
   );
 }
