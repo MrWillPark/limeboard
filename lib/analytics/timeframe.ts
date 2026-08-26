@@ -137,35 +137,24 @@ export function timeframeLabel(timeframe: TimeframeId): string {
 }
 
 /**
- * Filter activity rows to the local-calendar window.
- * Note: each row’s `date` is a UTC day label from OpenRouter — we align by
- * string comparison to local YYYY-MM-DD, which is approximate near timezones.
+ * Filter activity rows to the canonical Explore window.
+ * Row `date` is a UTC day label from OpenRouter — compared as YYYY-MM-DD strings
+ * against the local-calendar window from `timeframeWindowBounds`.
  */
 export function filterActivityByTimeframe(
   activity: ActivityItem[],
   timeframe: TimeframeId
 ): ActivityItem[] {
-  if (timeframe === '30d') {
-    const start = localDaysAgo(29);
-    const end = localDateString();
-    return activity.filter((row) => {
-      const day = normalizeDayKey(row.date);
-      return day != null && day >= start && day <= end;
-    });
+  const { startDay, endDay } = timeframeWindowDayKeys(timeframe);
+
+  if (timeframe === 'today' || timeframe === '3h') {
+    return activity.filter((row) => normalizeDayKey(row.date) === startDay);
   }
 
-  if (timeframe === '7d') {
-    const start = localDaysAgo(6);
-    const end = localDateString();
-    return activity.filter((row) => {
-      const day = normalizeDayKey(row.date);
-      return day != null && day >= start && day <= end;
-    });
-  }
-
-  // Today / 3h: activity rarely includes the in-progress day; keep any row tagged local today.
-  const today = localDateString();
-  return activity.filter((row) => normalizeDayKey(row.date) === today);
+  return activity.filter((row) => {
+    const day = normalizeDayKey(row.date);
+    return day != null && day >= startDay && day <= endDay;
+  });
 }
 
 export function periodDayCount(timeframe: TimeframeId, activity: ActivityItem[]): number {
@@ -232,11 +221,48 @@ export function computeFleetPeriodSpend(
 }
 
 export function fleetSpendLabel(timeframe: TimeframeId): string | null {
-  if (timeframe === 'today' || timeframe === '3h') return 'Σ keys · usage_daily';
+  if (timeframe === '3h') return null;
+  if (timeframe === 'today') return 'Σ keys · usage_daily';
   if (timeframe === '7d') return 'Σ keys · usage_weekly (rolling 7d)';
-  if (timeframe === '30d') return 'Σ keys · usage_monthly';
+  if (timeframe === '30d') return 'Σ keys · usage_monthly (billing month)';
   return null;
 }
+
+/**
+ * Canonical Explore window: local-calendar inclusive days for 7d/30d,
+ * local midnight→now for today, last 3h for 3h.
+ */
+export function timeframeWindowBounds(
+  timeframe: TimeframeId,
+  now = new Date()
+): { start: Date; end: Date } {
+  const end = now;
+
+  if (timeframe === '3h') {
+    return { start: new Date(now.getTime() - 3 * 60 * 60 * 1000), end };
+  }
+
+  if (timeframe === 'today') {
+    return {
+      start: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+      end,
+    };
+  }
+
+  const daysBack = timeframe === '7d' ? 6 : 29;
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  start.setDate(start.getDate() - daysBack);
+  return { start, end };
+}
+
+export function timeframeWindowDayKeys(timeframe: TimeframeId, now = new Date()): {
+  startDay: string;
+  endDay: string;
+} {
+  const { start, end } = timeframeWindowBounds(timeframe, now);
+  return { startDay: localDateString(start), endDay: localDateString(end) };
+}
+
 
 export function localHoursElapsedToday(): number {
   const now = new Date();

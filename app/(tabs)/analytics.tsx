@@ -18,6 +18,7 @@ import {
   needsAnalyticsApi,
   rowsToStackedSeries,
   rowsToTimeSeries,
+  stackedSeriesTotal,
 } from '@/lib/analytics/analytics-query';
 import {
   EXPLORE_METRICS,
@@ -32,6 +33,7 @@ import {
   type ExploreGroupBy,
   type ExploreMetric,
   type ExploreRollup,
+  type RankedRow,
 } from '@/lib/analytics/explore';
 import {
   filterActivityByTimeframe,
@@ -39,6 +41,7 @@ import {
   computeLiveTodaySpend,
   fleetSpendLabel,
   isIntradayTimeframe,
+  localDateString,
   timeframeLabel,
   type TimeframeId,
 } from '@/lib/analytics/timeframe';
@@ -51,6 +54,100 @@ import {
   useManagedKeys,
 } from '@/hooks/use-openrouter';
 import { useAuth } from '@/providers/auth-provider';
+
+function mismatchCaption(
+  timeframe: TimeframeId,
+  rollup: ExploreRollup,
+  field: 'usage_daily' | 'usage_weekly' | 'usage_monthly' | null
+): string {
+  if (rollup === 'minute') return ' (minute window is ≤3h)';
+  if (rollup === 'hour') {
+    if (field === 'usage_daily') return ' (hour series ≠ Keys daily counter)';
+    if (field === 'usage_monthly') return ' (hour series ≠ Keys monthly counter)';
+    return ' (hour series ≠ Keys weekly counter)';
+  }
+  if (field === 'usage_monthly') {
+    return ' (activity days ≠ Keys billing-month counter)';
+  }
+  if (timeframe === '7d' || timeframe === '30d') {
+    return ' (activity completed days ≠ Keys rolling counter)';
+  }
+  return '';
+}
+
+function rankedFromStacked(
+  series: { key: string; values: number[] }[]
+): RankedRow[] {
+  const rows = series
+    .filter((s) => s.key !== '__other__')
+    .map((s) => {
+      const value = s.values.reduce((a, b) => a + b, 0);
+      return {
+        key: s.key,
+        label: s.key,
+        value,
+        share: 0,
+        promptTokens: 0,
+        completionTokens: 0,
+        requests: 0,
+        spend: 0,
+      };
+    })
+    .filter((r) => r.value > 0)
+    .sort((a, b) => b.value - a.value);
+
+  const other = series.find((s) => s.key === '__other__');
+  if (other) {
+    const value = other.values.reduce((a, b) => a + b, 0);
+    if (value > 0) {
+      rows.push({
+        key: '__other__',
+        label: 'Other',
+        value,
+        share: 0,
+        promptTokens: 0,
+        completionTokens: 0,
+        requests: 0,
+        spend: 0,
+      });
+    }
+  }
+
+  const total = rows.reduce((s, r) => s + r.value, 0) || 1;
+  return rows.map((r) => ({ ...r, share: r.value / total }));
+}
+
+/** Ensure day-rollup series includes a today bucket (often missing from Activity). */
+function ensureTodayBucket(
+  points: { bucket: string; value: number; label?: string }[],
+  rollup: ExploreRollup,
+  timeframe: TimeframeId
+): { bucket: string; value: number; label: string }[] {
+  if (rollup !== 'day' || (timeframe !== '7d' && timeframe !== '30d')) {
+    return points.map((p) => ({
+      ...p,
+      label: p.label ?? formatBucketLabel(p.bucket, rollup),
+    }));
+  }
+  const today = localDateString();
+  if (points.some((p) => p.bucket === today)) {
+    return points.map((p) => ({
+      ...p,
+      label: p.label ?? formatBucketLabel(p.bucket, rollup),
+    }));
+  }
+  return [
+    ...points.map((p) => ({
+      ...p,
+      label: p.label ?? formatBucketLabel(p.bucket, rollup),
+    })),
+    {
+      bucket: today,
+      value: 0,
+      label: formatBucketLabel(today, rollup),
+    },
+  ].sort((a, b) => a.bucket.localeCompare(b.bucket));
+}
 
 export default function ExploreScreen() {
   const { isConnected, meta } = useAuth();
@@ -113,11 +210,6 @@ export default function ExploreScreen() {
     meta?.isManagementKey,
   ]);
 
-  const ranked = useMemo(
-    () => aggregateRanked(activity, metric, groupBy),
-    [activity, metric, groupBy]
-  );
-
   const todayTrail = useMemo(() => {
     if (useAnalytics) return null;
     if (timeframe !== 'today' || metric !== 'spend') return null;
@@ -164,11 +256,20 @@ export default function ExploreScreen() {
       }));
     }
     if (useAnalytics) return [];
-    return aggregateTimeSeries(activity, metric, rollup).map((p) => ({
+    const aggregated = aggregateTimeSeries(activity, metric, rollup).map((p) => ({
       ...p,
       label: formatBucketLabel(p.bucket, rollup),
     }));
-  }, [useAnalytics, lineAnalytics.data, todayTrail, activity, metric, rollup]);
+    return ensureTodayBucket(aggregated, rollup, timeframe);
+  }, [
+    useAnalytics,
+    lineAnalytics.data,
+    todayTrail,
+    activity,
+    metric,
+    rollup,
+    timeframe,
+  ]);
 
   const stacked = useMemo(() => {
     if (useAnalytics && stackedAnalytics.data) {
@@ -200,12 +301,33 @@ export default function ExploreScreen() {
       return {
         buckets: [] as string[],
         series: [] as { key: string; color: string; values: number[] }[],
+        totals: [] as number[],
       };
     }
     const raw = aggregateStackedTimeSeries(activity, metric, groupBy, rollup, 5);
+    let buckets = raw.buckets;
+    let series = raw.series;
+    let totals = raw.totals;
+    if (rollup === 'day' && (timeframe === '7d' || timeframe === '30d')) {
+      const today = localDateString();
+      if (!buckets.includes(today)) {
+        buckets = [...buckets, today].sort();
+        series = series.map((s) => {
+          const values = buckets.map((b) => {
+            const idx = raw.buckets.indexOf(b);
+            return idx >= 0 ? (s.values[idx] ?? 0) : 0;
+          });
+          return { ...s, values };
+        });
+        totals = buckets.map((_, i) =>
+          series.reduce((sum, s) => sum + (s.values[i] ?? 0), 0)
+        );
+      }
+    }
     return {
-      ...raw,
-      series: raw.series.map((s, i) => ({
+      buckets,
+      totals,
+      series: series.map((s, i) => ({
         ...s,
         color:
           s.key === '__other__'
@@ -213,18 +335,44 @@ export default function ExploreScreen() {
             : colors.chart[i % colors.chart.length],
       })),
     };
-  }, [useAnalytics, stackedAnalytics.data, activity, metric, groupBy, rollup, timeframe]);
+  }, [
+    useAnalytics,
+    stackedAnalytics.data,
+    activity,
+    metric,
+    groupBy,
+    rollup,
+    timeframe,
+  ]);
+
+  const ranked = useMemo(() => {
+    if (useAnalytics && stacked.series.length > 0) {
+      return rankedFromStacked(stacked.series);
+    }
+    return aggregateRanked(activity, metric, groupBy);
+  }, [useAnalytics, stacked.series, activity, metric, groupBy]);
 
   const metricMeta = EXPLORE_METRICS.find((m) => m.id === metric)!;
   const formatValue = (n: number) => formatMetricValue(metric, n);
 
+  /** Chart Sum always matches the visible chart (line or stacked bars). */
   const seriesTotal = useMemo(() => {
-    // Today session trail points are cumulative live spend, not per-bucket deltas.
     if (todayTrail) {
       return liveToday?.spend ?? timeSeries[timeSeries.length - 1]?.value ?? 0;
     }
+    if (chartType === 'bar' && stacked.buckets.length > 0) {
+      return stacked.totals?.reduce((a, b) => a + b, 0) ?? stackedSeriesTotal(stacked.series);
+    }
     return timeSeries.reduce((s, p) => s + p.value, 0);
-  }, [todayTrail, liveToday?.spend, timeSeries]);
+  }, [
+    todayTrail,
+    liveToday?.spend,
+    timeSeries,
+    chartType,
+    stacked.buckets.length,
+    stacked.totals,
+    stacked.series,
+  ]);
 
   /**
    * Overview spend = timeframe total only (never depends on rollup).
@@ -267,7 +415,11 @@ export default function ExploreScreen() {
   const overviewSpendLabel = useMemo(() => {
     if (timeframe === '3h') return 'Last 3h · Analytics total';
     if (fleetSpend.source === 'none') return null;
-    return fleetSpendLabel(timeframe);
+    const spend = fleetSpendLabel(timeframe);
+    if (!spend) return null;
+    const volumeFromActivity =
+      timeframe === 'today' || timeframe === '7d' || timeframe === '30d';
+    return volumeFromActivity ? `${spend} · tokens/req from Activity` : spend;
   }, [timeframe, fleetSpend.source]);
 
   const donutSlices = ranked.slice(0, 5).map((row, i) => ({
@@ -276,7 +428,12 @@ export default function ExploreScreen() {
   }));
 
   const barRows = ranked.map((row, i) => ({
-    label: groupBy === 'model' ? shortModelName(row.label) : row.label,
+    label:
+      row.key === '__other__'
+        ? 'Other'
+        : groupBy === 'model'
+          ? shortModelName(row.label)
+          : row.label,
     value: row.value,
     share: row.share,
     color: colors.chart[i % colors.chart.length],
@@ -286,12 +443,17 @@ export default function ExploreScreen() {
   const empty =
     !useAnalytics &&
     activity.length === 0 &&
-    !isIntradayTimeframe(timeframe);
+    !isIntradayTimeframe(timeframe) &&
+    !todayTrail;
   const analyticsNote =
     lineAnalytics.data?.rangeNote ??
     stackedAnalytics.data?.rangeNote ??
     overviewAnalytics.data?.rangeNote ??
     null;
+  const truncated =
+    Boolean(lineAnalytics.data?.truncated) ||
+    Boolean(stackedAnalytics.data?.truncated) ||
+    Boolean(overviewAnalytics.data?.truncated);
 
   const refreshing =
     activityQuery.isFetching ||
@@ -362,6 +524,8 @@ export default function ExploreScreen() {
     ? ((lineAnalytics.error ?? stackedAnalytics.error) as Error | null)
     : null;
 
+  const showBar = chartType === 'bar' && stacked.buckets.length > 0;
+
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
@@ -418,17 +582,21 @@ export default function ExploreScreen() {
                 {metric === 'spend' &&
                 Math.abs(overview.spend - seriesTotal) > 0.005 ? (
                   <AppText variant="caption">
-                    Chart sum {formatValue(seriesTotal)} · Overview {formatValue(overview.spend)}
-                    {rollup === 'minute'
-                      ? ' (minute window is ≤3h)'
-                      : rollup === 'hour'
-                        ? ' (hour series ≠ Keys weekly counter)'
-                        : ' (activity days ≠ Keys rolling counter)'}
+                    Chart sum {formatValue(seriesTotal)} · Overview{' '}
+                    {formatValue(overview.spend)}
+                    {mismatchCaption(timeframe, rollup, fleetSpend.field)}
                   </AppText>
                 ) : null}
 
                 {analyticsNote ? (
                   <AppText variant="caption">{analyticsNote}</AppText>
+                ) : null}
+
+                {truncated ? (
+                  <AppText variant="caption" color={colors.red}>
+                    Analytics response truncated — Chart Sum may be incomplete. Narrow
+                    the range or use Day rollup.
+                  </AppText>
                 ) : null}
 
                 {chartLoading ? (
@@ -442,10 +610,10 @@ export default function ExploreScreen() {
                   metric !== 'spend' ? (
                   <AppText variant="caption">
                     {timeframe === '3h'
-                      ? 'Pick Minute rollup for a real 3-hour Analytics series.'
+                      ? 'Pick Minute or Hour rollup for a real 3-hour Analytics series.'
                       : 'Today only has live spend from /key unless you pick Minute or Hour rollup (Analytics API).'}
                   </AppText>
-                ) : chartType === 'bar' && stacked.buckets.length > 0 ? (
+                ) : showBar ? (
                   <>
                     <StackedBarChart
                       buckets={stacked.buckets}
@@ -516,10 +684,6 @@ export default function ExploreScreen() {
                       <AppText variant="caption">
                         Midnight → now · trail grows as you refresh (live /key)
                       </AppText>
-                    ) : timeframe === '3h' && !useAnalytics ? (
-                      <AppText variant="caption">
-                        Switch Rollup to Minute for last-3-hour Analytics buckets.
-                      </AppText>
                     ) : null}
                   </>
                 )}
@@ -531,8 +695,9 @@ export default function ExploreScreen() {
                 </AppText>
                 {ranked.length === 0 ? (
                   <AppText variant="caption">
-                    Model breakdown needs completed Activity days — try 7d / 30d, or use
-                    stacked chart with Minute rollup.
+                    {useAnalytics
+                      ? 'No breakdown rows in this Analytics window yet.'
+                      : 'Model breakdown needs completed Activity days — try 7d / 30d, or use stacked chart with Minute/Hour rollup.'}
                   </AppText>
                 ) : (
                   <>
@@ -563,9 +728,11 @@ export default function ExploreScreen() {
                               numberOfLines={1}
                               style={{ flex: 1, color: colors.text }}
                             >
-                              {groupBy === 'model'
-                                ? shortModelName(row.label)
-                                : row.label}
+                              {row.key === '__other__'
+                                ? 'Other'
+                                : groupBy === 'model'
+                                  ? shortModelName(row.label)
+                                  : row.label}
                             </AppText>
                             <AppText
                               variant="mono"
@@ -584,6 +751,11 @@ export default function ExploreScreen() {
                       maxRows={6}
                       compact
                     />
+                    {useAnalytics ? (
+                      <AppText variant="caption">
+                        Breakdown from same Analytics stacked series as the chart
+                      </AppText>
+                    ) : null}
                   </>
                 )}
               </Panel>

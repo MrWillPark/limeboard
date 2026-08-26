@@ -1,8 +1,13 @@
+import { useEffect } from 'react';
 import { View } from 'react-native';
 
 import { ExplorePicker } from '@/components/explore/explore-picker';
 import { AppText } from '@/components/ui/app-text';
-import { needsAnalyticsApi } from '@/lib/analytics/analytics-query';
+import {
+  allowedRollupsForTimeframe,
+  coerceRollupForTimeframe,
+  needsAnalyticsApi,
+} from '@/lib/analytics/analytics-query';
 import {
   EXPLORE_GROUPS,
   EXPLORE_METRICS,
@@ -22,7 +27,6 @@ const CHART_TYPES: { id: ExploreChartType; label: string; shortLabel: string }[]
   { id: 'line', label: 'Line', shortLabel: 'Line' },
   { id: 'bar', label: 'Stacked bar', shortLabel: 'Stack' },
 ];
-
 
 type Props = {
   timeframe: TimeframeId;
@@ -50,6 +54,18 @@ export function ExploreFilters({
   onChartTypeChange,
 }: Props) {
   const def = getTimeframeDefinition(timeframe);
+  const allowedRollups = allowedRollupsForTimeframe(timeframe);
+
+  useEffect(() => {
+    const next = coerceRollupForTimeframe(timeframe, rollup);
+    if (next !== rollup) onRollupChange(next);
+  }, [timeframe, rollup, onRollupChange]);
+
+  const handleTimeframeChange = (id: TimeframeId) => {
+    onTimeframeChange(id);
+    const next = coerceRollupForTimeframe(id, rollup);
+    if (next !== rollup) onRollupChange(next);
+  };
 
   return (
     <View style={{ gap: 4 }}>
@@ -64,7 +80,7 @@ export function ExploreFilters({
             shortLabel: t.short,
           }))}
           value={timeframe}
-          onChange={(id) => onTimeframeChange(id as TimeframeId)}
+          onChange={(id) => handleTimeframeChange(id as TimeframeId)}
         />
         <ExplorePicker
           flex
@@ -94,11 +110,13 @@ export function ExploreFilters({
           flex
           dense
           label="Rollup"
-          options={EXPLORE_ROLLUPS.map((r) => ({
-            id: r.id,
-            label: r.label,
-            shortLabel: r.short,
-          }))}
+          options={EXPLORE_ROLLUPS.filter((r) => allowedRollups.includes(r.id)).map(
+            (r) => ({
+              id: r.id,
+              label: r.label,
+              shortLabel: r.short,
+            })
+          )}
           value={rollup}
           onChange={(id) => onRollupChange(id as ExploreRollup)}
         />
@@ -115,18 +133,12 @@ export function ExploreFilters({
           onChange={(id) => onChartTypeChange(id as ExploreChartType)}
         />
       </View>
-      <AppText variant="caption" numberOfLines={1} style={{ fontSize: 11 }}>
+      <AppText variant="caption" numberOfLines={2} style={{ fontSize: 11 }}>
         {needsAnalyticsApi(rollup)
-          ? timeframe === '3h' ||
-            (rollup === 'hour' && (timeframe === '7d' || timeframe === '30d')) ||
-            (timeframe === 'today' && rollup !== 'minute')
-            ? `${def.windowDescription} · ${rollup} buckets`
-            : timeframe === 'today' && rollup === 'minute'
-              ? `${def.windowDescription} · minute (≤3h cap)`
-              : rollup === 'hour'
-                ? `${def.windowDescription} · hour buckets`
-                : `Minute capped to 3h — use Range 3h, or Hour for 7d`
-          : `${def.windowDescription}${timeframe === 'today' ? ' · live /key' : ''}`}
+          ? timeframe === 'today' && rollup === 'minute'
+            ? `${def.windowDescription} · minute (≤3h API cap)`
+            : `${def.windowDescription} · ${rollup} buckets · Analytics`
+          : `${def.windowDescription}${timeframe === 'today' ? ' · live /key spend' : ''}`}
       </AppText>
     </View>
   );

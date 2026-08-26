@@ -5,6 +5,7 @@ import {
   analyticsGranularity,
   analyticsMetricId,
   analyticsTimeRange,
+  chunkTimeRange,
   needsAnalyticsApi,
   rowsToOverviewTotals,
 } from '@/lib/analytics/analytics-query';
@@ -21,6 +22,7 @@ import {
   listKeys,
   queryAnalytics,
   type AnalyticsQueryBody,
+  type AnalyticsQueryResult,
 } from '@/lib/openrouter/client';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -70,6 +72,52 @@ type AnalyticsSeriesArgs = {
   withDimension?: boolean;
 };
 
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Fetch Analytics rows; for long hour×dimension windows, chunk by week and merge
+ * so we stay under the API row limit instead of silently truncating.
+ */
+async function fetchAnalyticsSeriesRows(
+  apiKey: string,
+  bodyBase: Omit<AnalyticsQueryBody, 'time_range'>,
+  range: { start: string; end: string },
+  withDimension: boolean,
+  granularity: NonNullable<AnalyticsQueryBody['granularity']>
+): Promise<{
+  data: Record<string, string | number | null>[];
+  truncated: boolean;
+  rowCount: number;
+}> {
+  const shouldChunk =
+    withDimension &&
+    granularity === 'hour' &&
+    new Date(range.end).getTime() - new Date(range.start).getTime() > WEEK_MS;
+
+  const ranges = shouldChunk
+    ? chunkTimeRange(range.start, range.end, WEEK_MS)
+    : [{ start: range.start, end: range.end }];
+
+  const allRows: Record<string, string | number | null>[] = [];
+  let truncated = false;
+  let rowCount = 0;
+
+  for (const chunk of ranges) {
+    const body: AnalyticsQueryBody = {
+      ...bodyBase,
+      time_range: { start: chunk.start, end: chunk.end },
+      // Omit group_limit so the server auto-sizes for time×dimension series.
+      limit: 10_000,
+    };
+    const result: AnalyticsQueryResult = await queryAnalytics(apiKey, body);
+    allRows.push(...result.data);
+    rowCount += result.metadata.row_count;
+    if (result.metadata.truncated) truncated = true;
+  }
+
+  return { data: allRows, truncated, rowCount };
+}
+
 export function useAnalyticsSeries({
   metric,
   groupBy,
@@ -101,19 +149,35 @@ export function useAnalyticsSeries({
     ],
     queryFn: async () => {
       const range = analyticsTimeRange(timeframe, granularity);
-      const body: AnalyticsQueryBody = {
+      const bodyBase: Omit<AnalyticsQueryBody, 'time_range'> = {
         metrics: [metricId],
         granularity,
-        time_range: { start: range.start, end: range.end },
         order_by: { field: 'date', direction: 'asc' },
-        limit: 10_000,
       };
       if (withDimension) {
-        body.dimensions = [dimension];
+        bodyBase.dimensions = [dimension];
       }
-      const result = await queryAnalytics(apiKey!, body);
+
+      const fetched = await fetchAnalyticsSeriesRows(
+        apiKey!,
+        bodyBase,
+        range,
+        withDimension,
+        granularity
+      );
+
+      // Validate metric column exists when rows are present
+      if (fetched.data.length > 0 && !(metricId in fetched.data[0]!)) {
+        const keys = Object.keys(fetched.data[0]!).join(', ');
+        throw new Error(
+          `Analytics response missing metric "${metricId}" (got: ${keys})`
+        );
+      }
+
       return {
-        ...result,
+        data: fetched.data,
+        truncated: fetched.truncated,
+        rowCount: fetched.rowCount,
         rangeNote: range.note,
         rangeStart: range.start,
         rangeEnd: range.end,
@@ -164,6 +228,7 @@ export function useAnalyticsOverview(enabled: boolean) {
 
       return {
         totals,
+        truncated: result.metadata.truncated,
         rangeNote: overviewRange.note,
         rangeStart: overviewRange.start,
         rangeEnd: overviewRange.end,

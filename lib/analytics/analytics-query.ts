@@ -1,5 +1,8 @@
 import type { ExploreGroupBy, ExploreMetric, ExploreRollup } from '@/lib/analytics/explore';
-import type { TimeframeId } from '@/lib/analytics/timeframe';
+import {
+  timeframeWindowBounds,
+  type TimeframeId,
+} from '@/lib/analytics/timeframe';
 import type { AnalyticsQueryBody } from '@/lib/openrouter/client';
 
 /** Map LimeBoard Explore metrics → OpenRouter Analytics metric ids. */
@@ -40,11 +43,28 @@ export function needsAnalyticsApi(rollup: ExploreRollup): boolean {
   return rollup === 'minute' || rollup === 'hour';
 }
 
+/** Rollups allowed for a timeframe — illegal combos are filtered in Explore UI. */
+export function allowedRollupsForTimeframe(timeframe: TimeframeId): ExploreRollup[] {
+  if (timeframe === '3h') return ['minute', 'hour'];
+  if (timeframe === '7d' || timeframe === '30d') return ['hour', 'day', 'week'];
+  // today
+  return ['minute', 'hour', 'day', 'week'];
+}
+
+export function coerceRollupForTimeframe(
+  timeframe: TimeframeId,
+  rollup: ExploreRollup
+): ExploreRollup {
+  const allowed = allowedRollupsForTimeframe(timeframe);
+  if (allowed.includes(rollup)) return rollup;
+  return allowed[0]!;
+}
+
 /**
  * Window rules (Analytics API):
- * - minute: max ~3h (OpenRouter constraint)
- * - hour + 7d/30d: full selected multi-day window (7d is ideal)
- * - today: local midnight → now
+ * - minute: max ~3h (OpenRouter constraint); only today / 3h in UI
+ * - hour / multi-day: shared local-midnight window from timeframeWindowBounds
+ * - today: local midnight → now (minute clamped to last 3h)
  * - 3h: last 3 hours
  */
 export function analyticsTimeRange(
@@ -53,60 +73,78 @@ export function analyticsTimeRange(
   now = new Date()
 ): { start: string; end: string; note: string | null } {
   const end = now.toISOString();
+  const { start: windowStart, end: windowEnd } = timeframeWindowBounds(timeframe, now);
 
   if (timeframe === '3h') {
     return {
-      start: new Date(now.getTime() - 3 * 60 * 60 * 1000).toISOString(),
-      end,
+      start: windowStart.toISOString(),
+      end: windowEnd.toISOString(),
       note: null,
     };
   }
 
   if (timeframe === 'today') {
     if (granularity === 'minute') {
-      // Minute max window is ~3h — clamp Today to last 3h for minute rollup.
-      const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-      const start = threeHoursAgo > dayStart ? threeHoursAgo : dayStart;
+      const start =
+        threeHoursAgo.getTime() > windowStart.getTime() ? threeHoursAgo : windowStart;
+      const clamped = start.getTime() > windowStart.getTime();
       return {
         start: start.toISOString(),
         end,
-        note:
-          threeHoursAgo > dayStart
-            ? 'Minute rollup capped at last 3 hours (Analytics API limit).'
-            : null,
+        note: clamped
+          ? 'Minute rollup capped at last 3 hours (Analytics API limit).'
+          : null,
       };
     }
     return {
-      start: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(),
+      start: windowStart.toISOString(),
       end,
       note: null,
     };
   }
 
-  if (granularity === 'hour') {
-    if (timeframe === '7d') {
-      return {
-        start: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        end,
-        note: null,
-      };
-    }
-    if (timeframe === '30d') {
-      return {
-        start: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        end,
-        note: null,
-      };
-    }
+  // 7d / 30d
+  if (granularity === 'hour' || granularity === 'day' || granularity === 'week') {
+    return {
+      start: windowStart.toISOString(),
+      end,
+      note:
+        timeframe === '30d' && granularity === 'hour'
+          ? '30d at hour granularity — stacked charts may chunk requests.'
+          : null,
+    };
   }
 
-  // Minute on 7d/30d → clamp to 3h
+  // Defensive: minute on 7d/30d should be coerced away in UI
   return {
     start: new Date(now.getTime() - 3 * 60 * 60 * 1000).toISOString(),
     end,
     note: 'Minute rollup limited to last 3 hours — use Range 3h, or Hour rollup for 7d.',
   };
+}
+
+/** Split a range into ~chunkMs windows for Analytics queries that risk truncation. */
+export function chunkTimeRange(
+  startIso: string,
+  endIso: string,
+  chunkMs: number
+): { start: string; end: string }[] {
+  const startMs = new Date(startIso).getTime();
+  const endMs = new Date(endIso).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+    return [{ start: startIso, end: endIso }];
+  }
+
+  const chunks: { start: string; end: string }[] = [];
+  for (let t = startMs; t < endMs; t += chunkMs) {
+    const chunkEnd = Math.min(t + chunkMs, endMs);
+    chunks.push({
+      start: new Date(t).toISOString(),
+      end: new Date(chunkEnd).toISOString(),
+    });
+  }
+  return chunks.length > 0 ? chunks : [{ start: startIso, end: endIso }];
 }
 
 export function parseAnalyticsNumber(value: string | number | null | undefined): number {
@@ -170,10 +208,9 @@ export function rowsToTimeSeries(
   granularity: NonNullable<AnalyticsQueryBody['granularity']>
 ): AnalyticsSeriesPoint[] {
   const map = new Map<string, number>();
-  const dateCol = findAnalyticsTimeColumn(rows[0], granularity);
 
   for (const row of rows) {
-    const col = dateCol ?? findAnalyticsTimeColumn(row, granularity);
+    const col = findAnalyticsTimeColumn(row, granularity);
     if (!col) continue;
     const parsed = parseAnalyticsTimestamp(row[col]);
     if (!parsed) continue;
@@ -199,14 +236,14 @@ export function rowsToStackedSeries(
 ): {
   buckets: string[];
   series: { key: string; values: number[] }[];
+  totals: number[];
 } {
-  const totals = new Map<string, number>();
+  const keyTotals = new Map<string, number>();
   const matrix = new Map<string, Map<string, number>>();
   const bucketSet = new Set<string>();
-  const dateCol = findAnalyticsTimeColumn(rows[0], granularity);
 
   for (const row of rows) {
-    const col = dateCol ?? findAnalyticsTimeColumn(row, granularity);
+    const col = findAnalyticsTimeColumn(row, granularity);
     if (!col) continue;
     const parsed = parseAnalyticsTimestamp(row[col]);
     if (!parsed) continue;
@@ -214,13 +251,13 @@ export function rowsToStackedSeries(
     const key = String(row[dimension] ?? 'unknown');
     const value = parseAnalyticsNumber(row[metricId]);
     bucketSet.add(bucket);
-    totals.set(key, (totals.get(key) ?? 0) + value);
+    keyTotals.set(key, (keyTotals.get(key) ?? 0) + value);
     if (!matrix.has(bucket)) matrix.set(bucket, new Map());
     const m = matrix.get(bucket)!;
     m.set(key, (m.get(key) ?? 0) + value);
   }
 
-  const topKeys = [...totals.entries()]
+  const topKeys = [...keyTotals.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, topN)
     .map(([k]) => k);
@@ -249,7 +286,9 @@ export function rowsToStackedSeries(
     }),
   }));
 
-  return { buckets, series };
+  const totals = buckets.map((_, i) => series.reduce((s, ser) => s + (ser.values[i] ?? 0), 0));
+
+  return { buckets, series, totals };
 }
 
 export function formatAnalyticsBucketLabel(
@@ -321,22 +360,34 @@ export function fillTimeSeriesGaps(
 }
 
 export function fillStackedGaps(
-  data: { buckets: string[]; series: { key: string; values: number[] }[] },
+  data: { buckets: string[]; series: { key: string; values: number[] }[]; totals?: number[] },
   granularity: NonNullable<AnalyticsQueryBody['granularity']>,
   startIso: string,
   endIso: string
-): { buckets: string[]; series: { key: string; values: number[] }[] } {
-  if (granularity !== 'minute' && granularity !== 'hour') return data;
+): { buckets: string[]; series: { key: string; values: number[] }[]; totals: number[] } {
+  if (granularity !== 'minute' && granularity !== 'hour') {
+    const totals =
+      data.totals ??
+      data.buckets.map((_, i) =>
+        data.series.reduce((s, ser) => s + (ser.values[i] ?? 0), 0)
+      );
+    return { buckets: data.buckets, series: data.series, totals };
+  }
   if (data.series.length === 0) {
     const empty = fillTimeSeriesGaps([], granularity, startIso, endIso);
-    return { buckets: empty.map((p) => p.bucket), series: [] };
+    return { buckets: empty.map((p) => p.bucket), series: [], totals: empty.map(() => 0) };
   }
 
   const step = granularity === 'minute' ? 60_000 : 3_600_000;
   const start = bucketStartMs(startIso, granularity);
   const end = bucketStartMs(endIso, granularity);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
-    return data;
+    const totals =
+      data.totals ??
+      data.buckets.map((_, i) =>
+        data.series.reduce((s, ser) => s + (ser.values[i] ?? 0), 0)
+      );
+    return { buckets: data.buckets, series: data.series, totals };
   }
 
   const indexByMs = new Map<number, number>();
@@ -356,7 +407,8 @@ export function fillStackedGaps(
     });
   }
 
-  return { buckets, series };
+  const totals = buckets.map((_, i) => series.reduce((s, ser) => s + (ser.values[i] ?? 0), 0));
+  return { buckets, series, totals };
 }
 
 export type AnalyticsOverviewTotals = {
@@ -391,5 +443,13 @@ export function rowsToOverviewTotals(
       byokSpend: acc.byokSpend + parseAnalyticsNumber(row.byok_usage),
     }),
     initial
+  );
+}
+
+/** Sum of all series values — Chart Sum for stacked/bar view. */
+export function stackedSeriesTotal(series: { values: number[] }[]): number {
+  return series.reduce(
+    (sum, s) => sum + s.values.reduce((a, b) => a + b, 0),
+    0
   );
 }

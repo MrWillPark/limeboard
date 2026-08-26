@@ -64,9 +64,9 @@ export function groupKey(row: ActivityItem, groupBy: ExploreGroupBy): string {
   return groupBy === 'provider' ? row.provider_name : row.model;
 }
 
-function rollupDate(date: string, rollup: ExploreRollup): string {
+function rollupDate(date: string, rollup: ExploreRollup): string | null {
   const day = normalizeDayKey(date);
-  if (!day) return date;
+  if (!day) return null;
   if (rollup === 'day' || rollup === 'minute' || rollup === 'hour') return day;
 
   const [year, month, dayNum] = day.split('-').map(Number);
@@ -138,6 +138,7 @@ export function aggregateTimeSeries(
   const map = new Map<string, number>();
   for (const row of activity) {
     const bucket = rollupDate(row.date, rollup);
+    if (!bucket) continue;
     map.set(bucket, (map.get(bucket) ?? 0) + metricValue(row, metric));
   }
   return [...map.entries()]
@@ -172,6 +173,7 @@ export function aggregateStackedTimeSeries(
 
   for (const row of activity) {
     const bucket = rollupDate(row.date, rollup);
+    if (!bucket) continue;
     bucketSet.add(bucket);
     const key = groupKey(row, groupBy);
     const seriesKey = topKeys.has(key) ? key : '__other__';

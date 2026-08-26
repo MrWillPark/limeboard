@@ -99,7 +99,7 @@ export default function KeysScreen() {
             </View>
             <AppText variant="caption">
               Rolling OpenRouter counters — Explore Today / 7d / 30d Overview spend uses
-              these sums.
+              these sums (tokens/requests come from Activity).
             </AppText>
           </Panel>
 
