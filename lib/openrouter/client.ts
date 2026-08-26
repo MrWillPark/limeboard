@@ -144,11 +144,57 @@ export async function queryAnalytics(
   apiKey: string,
   body: AnalyticsQueryBody
 ): Promise<AnalyticsQueryResult> {
-  const res = await request<{ data: AnalyticsQueryResult }>({
+  const res = await request<unknown>({
     apiKey,
     path: '/analytics/query',
     method: 'POST',
     body,
   });
-  return res.data;
+
+  // Normalize { data: { data, metadata } } | { data: rows } | rows
+  const root = res as Record<string, unknown>;
+  const level1 = root?.data;
+
+  if (Array.isArray(level1)) {
+    return {
+      data: level1 as Record<string, string | number | null>[],
+      metadata: {
+        query_time_ms: 0,
+        row_count: level1.length,
+        truncated: false,
+      },
+    };
+  }
+
+  if (level1 && typeof level1 === 'object') {
+    const inner = level1 as Record<string, unknown>;
+    if (Array.isArray(inner.data)) {
+      return {
+        data: inner.data as Record<string, string | number | null>[],
+        metadata: (inner.metadata as AnalyticsQueryResult['metadata']) ?? {
+          query_time_ms: 0,
+          row_count: inner.data.length,
+          truncated: false,
+        },
+        cachedAt: inner.cachedAt as number | undefined,
+        warnings: inner.warnings as string[] | undefined,
+      };
+    }
+  }
+
+  if (Array.isArray(res)) {
+    return {
+      data: res as Record<string, string | number | null>[],
+      metadata: {
+        query_time_ms: 0,
+        row_count: res.length,
+        truncated: false,
+      },
+    };
+  }
+
+  return {
+    data: [],
+    metadata: { query_time_ms: 0, row_count: 0, truncated: false },
+  };
 }

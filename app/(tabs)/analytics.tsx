@@ -43,6 +43,7 @@ import {
 import { buildTodayTrendSeries, recordTodaySpendSample } from '@/lib/analytics/today-trail';
 import {
   useActivity,
+  useAnalyticsOverview,
   useAnalyticsSeries,
   useKeyInfo,
   useManagedKeys,
@@ -77,6 +78,11 @@ export default function ExploreScreen() {
     timeframe,
     withDimension: true,
   });
+  const overviewAnalytics = useAnalyticsOverview(
+    timeframe,
+    rollup,
+    timeframe === '3h'
+  );
 
   const activity = useMemo(
     () => filterActivityByTimeframe(activityQuery.data ?? [], timeframe),
@@ -84,26 +90,25 @@ export default function ExploreScreen() {
   );
 
   const liveToday = useMemo(() => {
-    if (timeframe !== 'today') return null;
+    if (timeframe !== 'today' || useAnalytics) return null;
     return computeLiveTodaySpend(
       keyQuery.data,
       keysQuery.data,
       Boolean(meta?.isManagementKey)
     );
-  }, [timeframe, keyQuery.data, keysQuery.data, meta?.isManagementKey]);
-
-  const overview = useMemo(() => {
-    const base = computeOverview(activity);
-    if (!liveToday) return base;
-    return { ...base, spend: liveToday.spend };
-  }, [activity, liveToday]);
+  }, [
+    timeframe,
+    useAnalytics,
+    keyQuery.data,
+    keysQuery.data,
+    meta?.isManagementKey,
+  ]);
 
   const ranked = useMemo(
     () => aggregateRanked(activity, metric, groupBy),
     [activity, metric, groupBy]
   );
 
-  // Session trail only when Today + spend + day/week rollup (no Analytics minute series).
   const todayTrail = useMemo(() => {
     if (useAnalytics) return null;
     if (timeframe !== 'today' || metric !== 'spend') return null;
@@ -203,15 +208,55 @@ export default function ExploreScreen() {
 
   const metricMeta = EXPLORE_METRICS.find((m) => m.id === metric)!;
   const formatValue = (n: number) => formatMetricValue(metric, n);
+
   const seriesTotal = useMemo(() => {
-    if (useAnalytics) {
-      return timeSeries.reduce((s, p) => s + p.value, 0);
-    }
-    if (timeframe === 'today' && metric === 'spend') {
-      return liveToday?.spend ?? 0;
+    // Today session trail points are cumulative live spend, not per-bucket deltas.
+    if (todayTrail) {
+      return liveToday?.spend ?? timeSeries[timeSeries.length - 1]?.value ?? 0;
     }
     return timeSeries.reduce((s, p) => s + p.value, 0);
-  }, [useAnalytics, timeframe, metric, liveToday?.spend, timeSeries]);
+  }, [todayTrail, liveToday?.spend, timeSeries]);
+
+  /** Overview spend must match the Spend-over-time total for the active window. */
+  const overview = useMemo(() => {
+    const base = computeOverview(activity);
+    const fromAnalytics = overviewAnalytics.data?.totals;
+
+    if (fromAnalytics) {
+      const totals = {
+        spend: fromAnalytics.spend,
+        byokSpend: fromAnalytics.byokSpend,
+        requests: fromAnalytics.requests,
+        promptTokens: fromAnalytics.promptTokens,
+        completionTokens: fromAnalytics.completionTokens,
+        reasoningTokens: fromAnalytics.reasoningTokens,
+      };
+      // Prefer chart series sum for the active metric so KPI == chart header.
+      if (metric === 'spend') totals.spend = seriesTotal;
+      if (metric === 'requests') totals.requests = seriesTotal;
+      if (metric === 'prompt_tokens') totals.promptTokens = seriesTotal;
+      if (metric === 'completion_tokens') totals.completionTokens = seriesTotal;
+      if (metric === 'reasoning_tokens') totals.reasoningTokens = seriesTotal;
+      if (metric === 'byok_spend') totals.byokSpend = seriesTotal;
+      return totals;
+    }
+
+    if (liveToday) {
+      return { ...base, spend: liveToday.spend };
+    }
+
+    // Activity path: spend KPI == sum of daily series for this timeframe
+    if (metric === 'spend') {
+      return { ...base, spend: seriesTotal };
+    }
+    return base;
+  }, [
+    activity,
+    overviewAnalytics.data?.totals,
+    liveToday,
+    metric,
+    seriesTotal,
+  ]);
 
   const donutSlices = ranked.slice(0, 5).map((row, i) => ({
     value: row.value,
@@ -231,21 +276,26 @@ export default function ExploreScreen() {
     activity.length === 0 &&
     !isIntradayTimeframe(timeframe);
   const analyticsNote =
-    lineAnalytics.data?.rangeNote ?? stackedAnalytics.data?.rangeNote ?? null;
+    lineAnalytics.data?.rangeNote ??
+    stackedAnalytics.data?.rangeNote ??
+    overviewAnalytics.data?.rangeNote ??
+    null;
 
   const refreshing =
     activityQuery.isFetching ||
     lineAnalytics.isFetching ||
-    stackedAnalytics.isFetching;
+    stackedAnalytics.isFetching ||
+    overviewAnalytics.isFetching;
 
   const onRefresh = () => {
     activityQuery.refetch();
-    if (useAnalytics) {
-      lineAnalytics.refetch();
-      stackedAnalytics.refetch();
-    }
     keyQuery.refetch();
     keysQuery.refetch();
+    if (useAnalytics || timeframe === '3h') {
+      lineAnalytics.refetch();
+      stackedAnalytics.refetch();
+      overviewAnalytics.refetch();
+    }
   };
 
   const filters = (
@@ -334,7 +384,8 @@ export default function ExploreScreen() {
               <ExploreOverview
                 totals={overview}
                 timeframe={timeframe}
-                liveSpend={timeframe === 'today' && !useAnalytics}
+                liveSpend={Boolean(liveToday)}
+                analytics={Boolean(overviewAnalytics.data) || useAnalytics}
               />
 
               <Panel style={{ gap: spacing.sm, padding: spacing.md }}>

@@ -6,6 +6,7 @@ import {
   analyticsMetricId,
   analyticsTimeRange,
   needsAnalyticsApi,
+  rowsToOverviewTotals,
 } from '@/lib/analytics/analytics-query';
 import type {
   ExploreGroupBy,
@@ -66,7 +67,6 @@ type AnalyticsSeriesArgs = {
   groupBy: ExploreGroupBy;
   rollup: ExploreRollup;
   timeframe: TimeframeId;
-  /** When true, include groupBy dimension (stacked charts). */
   withDimension?: boolean;
 };
 
@@ -91,6 +91,7 @@ export function useAnalyticsSeries({
     queryKey: [
       'openrouter',
       'analytics',
+      'series',
       apiKey,
       metric,
       groupBy,
@@ -99,7 +100,7 @@ export function useAnalyticsSeries({
       withDimension,
     ],
     queryFn: async () => {
-      const range = analyticsTimeRange(timeframe);
+      const range = analyticsTimeRange(timeframe, granularity);
       const body: AnalyticsQueryBody = {
         metrics: [metricId],
         granularity,
@@ -122,6 +123,68 @@ export function useAnalyticsSeries({
       };
     },
     enabled,
+    retry: false,
+    staleTime: 30_000,
+  });
+}
+
+/** Aggregate (no granularity) for Overview KPIs in the same Analytics window. */
+export function useAnalyticsOverview(
+  timeframe: TimeframeId,
+  rollup: ExploreRollup,
+  enabledExtra = false
+) {
+  const { apiKey, meta } = useAuth();
+  const useWindow = needsAnalyticsApi(rollup) || enabledExtra;
+  const granularity = analyticsGranularity(rollup) ?? 'hour';
+
+  return useQuery({
+    queryKey: ['openrouter', 'analytics', 'overview', apiKey, timeframe, rollup],
+    queryFn: async () => {
+      const range = analyticsTimeRange(
+        timeframe,
+        needsAnalyticsApi(rollup) ? granularity : 'hour'
+      );
+      // For 3h with day rollup still want last-3h overview when exploring that range
+      const overviewRange =
+        timeframe === '3h'
+          ? analyticsTimeRange('3h', 'minute')
+          : range;
+
+      const result = await queryAnalytics(apiKey!, {
+        metrics: [
+          'total_usage',
+          'request_count',
+          'tokens_prompt',
+          'tokens_completion',
+        ],
+        time_range: { start: overviewRange.start, end: overviewRange.end },
+        limit: 10,
+      });
+
+      const totals = rowsToOverviewTotals(result.data);
+      // Optional extras — ignore failures by leaving at 0 if columns absent
+      try {
+        const extra = await queryAnalytics(apiKey!, {
+          metrics: ['tokens_reasoning', 'byok_usage'],
+          time_range: { start: overviewRange.start, end: overviewRange.end },
+          limit: 10,
+        });
+        const more = rowsToOverviewTotals(extra.data);
+        totals.reasoningTokens = more.reasoningTokens;
+        totals.byokSpend = more.byokSpend;
+      } catch {
+        // optional metrics may be unavailable on some accounts
+      }
+
+      return {
+        totals,
+        rangeNote: overviewRange.note,
+        rangeStart: overviewRange.start,
+        rangeEnd: overviewRange.end,
+      };
+    },
+    enabled: Boolean(apiKey) && Boolean(meta?.isManagementKey) && useWindow,
     retry: false,
     staleTime: 30_000,
   });

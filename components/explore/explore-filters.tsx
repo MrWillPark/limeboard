@@ -117,11 +117,15 @@ export function ExploreFilters({
       </View>
       <AppText variant="caption" numberOfLines={1} style={{ fontSize: 11 }}>
         {needsAnalyticsApi(rollup)
-          ? timeframe === '3h'
+          ? timeframe === '3h' ||
+            (rollup === 'hour' && (timeframe === '7d' || timeframe === '30d')) ||
+            (timeframe === 'today' && rollup !== 'minute')
             ? `${def.windowDescription} · ${rollup} buckets`
-            : timeframe === 'today'
-              ? `${def.windowDescription} · ${rollup} buckets`
-              : `Last 3h · ${rollup} buckets — set Range to 3h`
+            : timeframe === 'today' && rollup === 'minute'
+              ? `${def.windowDescription} · minute (≤3h cap)`
+              : rollup === 'hour'
+                ? `${def.windowDescription} · hour buckets`
+                : `Minute capped to 3h — use Range 3h, or Hour for 7d`
           : `${def.windowDescription}${timeframe === 'today' ? ' · live /key' : ''}`}
       </AppText>
     </View>

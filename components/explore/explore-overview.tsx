@@ -10,9 +10,10 @@ type Props = {
   totals: OverviewTotals;
   timeframe: TimeframeId;
   liveSpend?: boolean;
+  analytics?: boolean;
 };
 
-export function ExploreOverview({ totals, timeframe, liveSpend }: Props) {
+export function ExploreOverview({ totals, timeframe, liveSpend, analytics }: Props) {
   const totalTokens = totals.promptTokens + totals.completionTokens;
 
   return (
@@ -22,6 +23,10 @@ export function ExploreOverview({ totals, timeframe, liveSpend }: Props) {
         {liveSpend ? (
           <AppText variant="caption" color={colors.limeSoft}>
             Live · /key
+          </AppText>
+        ) : analytics ? (
+          <AppText variant="caption" color={colors.limeSoft}>
+            Analytics · matches chart
           </AppText>
         ) : null}
       </View>
