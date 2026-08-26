@@ -11,9 +11,17 @@ type Props = {
   timeframe: TimeframeId;
   liveSpend?: boolean;
   analytics?: boolean;
+  /** e.g. Σ keys · usage_weekly — matches Keys screen */
+  fleetSpend?: string;
 };
 
-export function ExploreOverview({ totals, timeframe, liveSpend, analytics }: Props) {
+export function ExploreOverview({
+  totals,
+  timeframe,
+  liveSpend,
+  analytics,
+  fleetSpend,
+}: Props) {
   const totalTokens = totals.promptTokens + totals.completionTokens;
 
   return (
@@ -23,6 +31,10 @@ export function ExploreOverview({ totals, timeframe, liveSpend, analytics }: Pro
         {liveSpend ? (
           <AppText variant="caption" color={colors.limeSoft}>
             Live · /key
+          </AppText>
+        ) : fleetSpend ? (
+          <AppText variant="caption" color={colors.limeSoft} numberOfLines={1}>
+            {fleetSpend}
           </AppText>
         ) : analytics ? (
           <AppText variant="caption" color={colors.limeSoft}>
@@ -42,12 +54,7 @@ export function ExploreOverview({ totals, timeframe, liveSpend, analytics }: Pro
           overflow: 'hidden',
         }}
       >
-        <Kpi
-          label="Spend"
-          value={formatUsd(totals.spend)}
-          accent
-          border
-        />
+        <Kpi label="Spend" value={formatUsd(totals.spend)} accent border />
         <Kpi label="Requests" value={formatTokens(totals.requests)} border />
         <Kpi label="Tokens" value={formatTokens(totalTokens)} />
       </View>

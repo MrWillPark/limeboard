@@ -1,7 +1,7 @@
 import type { ActivityItem, CreditsInfo, KeyInfo, ManagedKey } from '@/lib/openrouter/types';
 
 import {
-  computeLiveTodaySpend,
+  computeFleetPeriodSpend,
   filterActivityByTimeframe,
   formatDayKeyLabel,
   getTimeframeDefinition,
@@ -31,7 +31,7 @@ export type BurnSnapshot = {
   projectedZeroDate: Date | null;
   daysRemaining: number | null;
   runwayLabel: string;
-  periodDataSource: 'activity' | 'live_key';
+  periodDataSource: 'activity' | 'live_key' | 'fleet_keys';
   timeframeNote: string;
 };
 
@@ -74,15 +74,18 @@ export function computeBurn(
     periodCompletionTokens += row.completion_tokens;
   }
 
-  if (timeframe === 'today') {
-    const live = computeLiveTodaySpend(
+  // Prefer Keys-screen counters so Overview / Cockpit match Σ key Today/Week/Month.
+  if (timeframe === 'today' || timeframe === '7d' || timeframe === '30d') {
+    const live = computeFleetPeriodSpend(
       key,
       options?.fleetKeys,
-      Boolean(options?.isManagementKey)
+      Boolean(options?.isManagementKey),
+      timeframe
     );
-    periodSpend = live.spend;
-    periodDataSource = 'live_key';
-    // Token/request splits aren't live on /key — keep any same-day activity rows if present.
+    if (live.source !== 'none') {
+      periodSpend = live.spend;
+      periodDataSource = live.source === 'fleet' ? 'fleet_keys' : 'live_key';
+    }
   }
 
   const days = periodDayCount(timeframe, activity);

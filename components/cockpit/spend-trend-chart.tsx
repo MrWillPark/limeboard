@@ -13,14 +13,20 @@ type Props = {
   series: Point[];
   timeframe: TimeframeId;
   total: number;
-  dataSource?: 'activity' | 'live_key';
+  dataSource?: 'activity' | 'live_key' | 'fleet_keys';
 };
 
 export function SpendTrendChart({ series, timeframe, total, dataSource }: Props) {
   const sourceLabel =
-    timeframe === 'today' || dataSource === 'live_key'
-      ? 'live /key · midnight → now (device local)'
-      : 'account-wide from activity';
+    dataSource === 'fleet_keys'
+      ? timeframe === '7d'
+        ? 'total · Σ keys usage_weekly'
+        : timeframe === '30d'
+          ? 'total · Σ keys usage_monthly'
+          : 'total · Σ keys usage_daily'
+      : timeframe === 'today' || dataSource === 'live_key'
+        ? 'live /key · midnight → now (device local)'
+        : 'account-wide from activity';
 
   const labels = series.map((p) => p.label ?? formatChartDate(p.date));
 

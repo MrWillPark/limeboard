@@ -35,7 +35,9 @@ import {
 } from '@/lib/analytics/explore';
 import {
   filterActivityByTimeframe,
+  computeFleetPeriodSpend,
   computeLiveTodaySpend,
+  fleetSpendLabel,
   isIntradayTimeframe,
   timeframeLabel,
   type TimeframeId,
@@ -87,6 +89,17 @@ export default function ExploreScreen() {
   const activity = useMemo(
     () => filterActivityByTimeframe(activityQuery.data ?? [], timeframe),
     [activityQuery.data, timeframe]
+  );
+
+  const fleetSpend = useMemo(
+    () =>
+      computeFleetPeriodSpend(
+        keyQuery.data,
+        keysQuery.data,
+        Boolean(meta?.isManagementKey),
+        timeframe
+      ),
+    [keyQuery.data, keysQuery.data, meta?.isManagementKey, timeframe]
   );
 
   const liveToday = useMemo(() => {
@@ -217,12 +230,39 @@ export default function ExploreScreen() {
     return timeSeries.reduce((s, p) => s + p.value, 0);
   }, [todayTrail, liveToday?.spend, timeSeries]);
 
-  /** Overview spend must match the Spend-over-time total for the active window. */
+  /**
+   * Spend KPI authority:
+   * - 3h / minute-hour Analytics → chart series (intraday)
+   * - today / 7d / 30d → Σ Keys counters (matches Keys screen Week/Today/Month)
+   * - else → activity series sum
+   */
+  const spendHeadline = useMemo(() => {
+    if (useAnalytics && (timeframe === '3h' || rollup === 'minute' || rollup === 'hour')) {
+      return seriesTotal;
+    }
+    if (
+      fleetSpend.source !== 'none' &&
+      (timeframe === 'today' || timeframe === '7d' || timeframe === '30d')
+    ) {
+      return fleetSpend.spend;
+    }
+    if (todayTrail) return liveToday?.spend ?? seriesTotal;
+    return seriesTotal;
+  }, [
+    useAnalytics,
+    timeframe,
+    rollup,
+    seriesTotal,
+    fleetSpend,
+    todayTrail,
+    liveToday?.spend,
+  ]);
+
   const overview = useMemo(() => {
     const base = computeOverview(activity);
     const fromAnalytics = overviewAnalytics.data?.totals;
 
-    if (fromAnalytics) {
+    if (useAnalytics && fromAnalytics && (timeframe === '3h' || rollup === 'minute' || rollup === 'hour')) {
       const totals = {
         spend: fromAnalytics.spend,
         byokSpend: fromAnalytics.byokSpend,
@@ -231,8 +271,7 @@ export default function ExploreScreen() {
         completionTokens: fromAnalytics.completionTokens,
         reasoningTokens: fromAnalytics.reasoningTokens,
       };
-      // Prefer chart series sum for the active metric so KPI == chart header.
-      if (metric === 'spend') totals.spend = seriesTotal;
+      if (metric === 'spend') totals.spend = spendHeadline;
       if (metric === 'requests') totals.requests = seriesTotal;
       if (metric === 'prompt_tokens') totals.promptTokens = seriesTotal;
       if (metric === 'completion_tokens') totals.completionTokens = seriesTotal;
@@ -241,20 +280,20 @@ export default function ExploreScreen() {
       return totals;
     }
 
-    if (liveToday) {
-      return { ...base, spend: liveToday.spend };
-    }
-
-    // Activity path: spend KPI == sum of daily series for this timeframe
-    if (metric === 'spend') {
-      return { ...base, spend: seriesTotal };
-    }
-    return base;
+    return {
+      ...base,
+      spend: metric === 'spend' || timeframe === 'today' || timeframe === '7d' || timeframe === '30d'
+        ? spendHeadline
+        : base.spend,
+    };
   }, [
     activity,
     overviewAnalytics.data?.totals,
-    liveToday,
+    useAnalytics,
+    timeframe,
+    rollup,
     metric,
+    spendHeadline,
     seriesTotal,
   ]);
 
@@ -385,7 +424,17 @@ export default function ExploreScreen() {
                 totals={overview}
                 timeframe={timeframe}
                 liveSpend={Boolean(liveToday)}
-                analytics={Boolean(overviewAnalytics.data) || useAnalytics}
+                fleetSpend={
+                  fleetSpend.source !== 'none' &&
+                  !useAnalytics &&
+                  (timeframe === 'today' || timeframe === '7d' || timeframe === '30d')
+                    ? fleetSpendLabel(timeframe) ?? undefined
+                    : undefined
+                }
+                analytics={
+                  Boolean(overviewAnalytics.data) ||
+                  (useAnalytics && (timeframe === '3h' || rollup === 'minute' || rollup === 'hour'))
+                }
               />
 
               <Panel style={{ gap: spacing.sm, padding: spacing.md }}>
@@ -400,9 +449,21 @@ export default function ExploreScreen() {
                     {metricMeta.label} over time
                   </AppText>
                   <AppText variant="mono" selectable color={colors.lime} style={{ fontSize: 13 }}>
-                    {formatValue(seriesTotal)}
+                    {formatValue(metric === 'spend' ? spendHeadline : seriesTotal)}
                   </AppText>
                 </View>
+
+                {metric === 'spend' &&
+                fleetSpend.source !== 'none' &&
+                !useAnalytics &&
+                (timeframe === '7d' || timeframe === '30d' || timeframe === 'today') ? (
+                  <AppText variant="caption">
+                    {fleetSpendLabel(timeframe)} · matches Keys screen totals
+                    {Math.abs(spendHeadline - seriesTotal) > 0.005
+                      ? ` · activity bars sum ${formatValue(seriesTotal)}`
+                      : ''}
+                  </AppText>
+                ) : null}
 
                 {analyticsNote ? (
                   <AppText variant="caption">{analyticsNote}</AppText>

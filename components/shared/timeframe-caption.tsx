@@ -6,21 +6,31 @@ import { getTimeframeDefinition, type TimeframeId } from '@/lib/analytics/timefr
 
 type Props = {
   timeframe: TimeframeId;
-  dataSource?: 'activity' | 'live_key';
+  dataSource?: 'activity' | 'live_key' | 'fleet_keys';
   /** Single-line caption for dense filter bars */
   compact?: boolean;
 };
 
 export function TimeframeCaption({ timeframe, dataSource, compact }: Props) {
   const def = getTimeframeDefinition(timeframe);
+  const keyNote =
+    dataSource === 'fleet_keys'
+      ? timeframe === '7d'
+        ? 'Spend · Σ keys usage_weekly (matches Keys)'
+        : timeframe === '30d'
+          ? 'Spend · Σ keys usage_monthly (matches Keys)'
+          : 'Spend · Σ keys usage_daily (matches Keys)'
+      : dataSource === 'live_key'
+        ? 'Spend · live /key'
+        : null;
 
   if (compact) {
     return (
       <View style={{ gap: 2 }}>
         <AppText variant="caption">{def.windowDescription}</AppText>
-        {dataSource === 'live_key' ? (
+        {keyNote ? (
           <AppText variant="caption" color={colors.limeSoft}>
-            Spend · live /key (UTC day)
+            {keyNote}
           </AppText>
         ) : null}
       </View>
@@ -42,9 +52,9 @@ export function TimeframeCaption({ timeframe, dataSource, compact }: Props) {
     >
       <AppText variant="caption">{def.windowDescription}</AppText>
       <AppText variant="caption">{def.dataNote}</AppText>
-      {dataSource === 'live_key' ? (
+      {keyNote ? (
         <AppText variant="caption" color={colors.limeSoft}>
-          Spend · live from /key usage_daily (OpenRouter’s current UTC day counter)
+          {keyNote}
         </AppText>
       ) : null}
     </View>

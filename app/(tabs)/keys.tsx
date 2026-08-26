@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -11,6 +12,16 @@ export default function KeysScreen() {
   const { isConnected, meta, maskedKey } = useAuth();
   const keyQuery = useKeyInfo();
   const keysQuery = useManagedKeys();
+
+  const fleetTotals = useMemo(() => {
+    const keys = keysQuery.data ?? [];
+    return {
+      daily: keys.reduce((s, k) => s + k.usage_daily, 0),
+      weekly: keys.reduce((s, k) => s + k.usage_weekly, 0),
+      monthly: keys.reduce((s, k) => s + k.usage_monthly, 0),
+      count: keys.length,
+    };
+  }, [keysQuery.data]);
 
   if (!isConnected) {
     return (
@@ -42,10 +53,6 @@ export default function KeysScreen() {
         />
       }
     >
-      <AppText>
-        Active session key and provisioned sub-keys with burn velocity.
-      </AppText>
-
       <Panel style={{ gap: spacing.sm }} accent>
         <AppText variant="label" color={colors.limeSoft}>
           Connected session
@@ -58,11 +65,8 @@ export default function KeysScreen() {
         </AppText>
         <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.sm }}>
           <KeyMetric label="Today" value={formatUsd(keyQuery.data?.usage_daily)} />
+          <KeyMetric label="Week" value={formatUsd(keyQuery.data?.usage_weekly)} />
           <KeyMetric label="Month" value={formatUsd(keyQuery.data?.usage_monthly)} />
-          <KeyMetric
-            label="Remaining"
-            value={formatUsd(keyQuery.data?.limit_remaining)}
-          />
         </View>
       </Panel>
 
@@ -84,7 +88,22 @@ export default function KeysScreen() {
         </Panel>
       ) : (
         <View style={{ gap: spacing.sm }}>
-          <AppText variant="label">Provisioned keys · {keysQuery.data?.length ?? 0}</AppText>
+          <Panel style={{ gap: spacing.sm }}>
+            <AppText variant="label">
+              Fleet totals · {fleetTotals.count} keys
+            </AppText>
+            <View style={{ flexDirection: 'row', gap: spacing.lg }}>
+              <KeyMetric label="Today" value={formatUsd(fleetTotals.daily)} />
+              <KeyMetric label="Week" value={formatUsd(fleetTotals.weekly)} />
+              <KeyMetric label="Month" value={formatUsd(fleetTotals.monthly)} />
+            </View>
+            <AppText variant="caption">
+              Rolling OpenRouter counters — Explore Today / 7d / 30d Overview spend uses
+              these sums.
+            </AppText>
+          </Panel>
+
+          <AppText variant="label">Provisioned keys · {fleetTotals.count}</AppText>
           {(keysQuery.data ?? []).map((key) => (
             <Panel key={key.hash} style={{ gap: spacing.sm }}>
               <View
@@ -108,7 +127,7 @@ export default function KeysScreen() {
               <View style={{ flexDirection: 'row', gap: spacing.lg }}>
                 <KeyMetric label="Today" value={formatUsd(key.usage_daily)} />
                 <KeyMetric label="Week" value={formatUsd(key.usage_weekly)} />
-                <KeyMetric label="Limit left" value={formatUsd(key.limit_remaining)} />
+                <KeyMetric label="Month" value={formatUsd(key.usage_monthly)} />
               </View>
             </Panel>
           ))}
@@ -120,7 +139,7 @@ export default function KeysScreen() {
 
 function KeyMetric({ label, value }: { label: string; value: string }) {
   return (
-    <View style={{ gap: 2 }}>
+    <View style={{ gap: 2, flex: 1 }}>
       <AppText variant="label">{label}</AppText>
       <AppText variant="mono" selectable>
         {value}

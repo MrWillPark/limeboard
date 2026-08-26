@@ -186,16 +186,56 @@ export function computeLiveTodaySpend(
   fleetKeys: ManagedKey[] | undefined,
   isManagementKey: boolean
 ): { spend: number; source: 'fleet' | 'session_key' | 'none' } {
+  return computeFleetPeriodSpend(key, fleetKeys, isManagementKey, 'today');
+}
+
+/**
+ * Account spend from key counters — same fields as the Keys screen.
+ * - today / 3h → Σ usage_daily (UTC day; 3h has no key counter)
+ * - 7d → Σ usage_weekly (rolling 7d)
+ * - 30d → Σ usage_monthly (OpenRouter month counter)
+ */
+export function computeFleetPeriodSpend(
+  key: KeyInfo | undefined,
+  fleetKeys: ManagedKey[] | undefined,
+  isManagementKey: boolean,
+  timeframe: TimeframeId
+): {
+  spend: number;
+  source: 'fleet' | 'session_key' | 'none';
+  field: 'usage_daily' | 'usage_weekly' | 'usage_monthly' | null;
+} {
+  const field =
+    timeframe === 'today' || timeframe === '3h'
+      ? ('usage_daily' as const)
+      : timeframe === '7d'
+        ? ('usage_weekly' as const)
+        : timeframe === '30d'
+          ? ('usage_monthly' as const)
+          : null;
+
+  if (!field) {
+    return { spend: 0, source: 'none', field: null };
+  }
+
   if (isManagementKey && fleetKeys && fleetKeys.length > 0) {
     return {
-      spend: fleetKeys.reduce((sum, k) => sum + k.usage_daily, 0),
+      spend: fleetKeys.reduce((sum, k) => sum + k[field], 0),
       source: 'fleet',
+      field,
     };
   }
   if (key != null) {
-    return { spend: key.usage_daily, source: 'session_key' };
+    return { spend: key[field], source: 'session_key', field };
   }
-  return { spend: 0, source: 'none' };
+  return { spend: 0, source: 'none', field };
+}
+
+export function fleetSpendLabel(timeframe: TimeframeId): string | null {
+  if (timeframe === 'today' || timeframe === '3h') return 'Σ keys · usage_daily';
+  if (timeframe === '7d') return 'Σ keys · usage_weekly (rolling 7d)';
+  if (timeframe === '30d') return 'Σ keys · usage_monthly';
+  return null;
 }
 
 export function localHoursElapsedToday(): number {

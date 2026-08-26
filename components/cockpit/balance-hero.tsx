@@ -63,9 +63,15 @@ export function BalanceHero({
           label={`Spend · ${timeframeLabel(timeframe)}`}
           value={formatUsd(burn.periodSpend)}
           hint={
-            burn.periodDataSource === 'live_key'
-              ? 'Live · /key'
-              : 'Activity aggregate'
+            burn.periodDataSource === 'fleet_keys'
+              ? timeframe === '7d'
+                ? 'Σ keys · week'
+                : timeframe === '30d'
+                  ? 'Σ keys · month'
+                  : 'Σ keys · today'
+              : burn.periodDataSource === 'live_key'
+                ? 'Live · /key'
+                : 'Activity aggregate'
           }
         />
         <Metric
