@@ -39,11 +39,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [key, keyMeta] = await Promise.all([getApiKey(), getKeyMeta()]);
-      if (cancelled) return;
-      setApiKey(key);
-      setMeta(keyMeta);
-      setReady(true);
+      try {
+        const [key, keyMeta] = await Promise.all([getApiKey(), getKeyMeta()]);
+        if (cancelled) return;
+        setApiKey(key);
+        setMeta(keyMeta);
+      } catch (e) {
+        console.warn('Failed to restore API key from secure storage', e);
+      } finally {
+        if (!cancelled) setReady(true);
+      }
     })();
     return () => {
       cancelled = true;

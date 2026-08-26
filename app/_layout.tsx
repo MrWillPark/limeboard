@@ -14,7 +14,6 @@ import { Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import 'react-native-reanimated';
 
 import { LimeBoardDarkTheme, colors } from '@/constants/theme';
 import { AppProviders } from '@/providers/app-providers';
@@ -25,7 +24,9 @@ export const unstable_settings = {
   initialRouteName: '(tabs)',
 };
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // Splash may already be hidden in Expo Go
+});
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -39,14 +40,18 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (error) throw error;
+    if (error) {
+      console.warn('Font load failed; continuing with system fonts', error);
+    }
   }, [error]);
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
-  }, [loaded]);
+    if (loaded || error) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [loaded, error]);
 
-  if (!loaded) return null;
+  if (!loaded && !error) return null;
 
   return (
     <AppProviders>
@@ -56,7 +61,7 @@ export default function RootLayout() {
           screenOptions={{
             headerStyle: { backgroundColor: colors.bg },
             headerTintColor: colors.text,
-            headerTitleStyle: { fontFamily: 'DMSans_600SemiBold' },
+            headerTitleStyle: { fontFamily: loaded ? 'DMSans_600SemiBold' : undefined },
             contentStyle: { backgroundColor: colors.bg },
           }}
         >

@@ -1,4 +1,4 @@
-import { SymbolView } from 'expo-symbols';
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 import { colors, fonts } from '@/constants/theme';
@@ -33,12 +33,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Cockpit',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'speedometer', android: 'speed', web: 'speed' }}
-              tintColor={color}
-              size={26}
-            />
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="speedometer-outline" color={color} size={size} />
           ),
         }}
       />
@@ -46,12 +42,8 @@ export default function TabLayout() {
         name="analytics"
         options={{
           title: 'Models',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'chart.pie.fill', android: 'pie_chart', web: 'pie_chart' }}
-              tintColor={color}
-              size={26}
-            />
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="pie-chart-outline" color={color} size={size} />
           ),
         }}
       />
@@ -59,12 +51,8 @@ export default function TabLayout() {
         name="keys"
         options={{
           title: 'Keys',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'key.fill', android: 'key', web: 'key' }}
-              tintColor={color}
-              size={26}
-            />
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="key-outline" color={color} size={size} />
           ),
         }}
       />
@@ -72,12 +60,8 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'gearshape.fill', android: 'settings', web: 'settings' }}
-              tintColor={color}
-              size={26}
-            />
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" color={color} size={size} />
           ),
         }}
       />
