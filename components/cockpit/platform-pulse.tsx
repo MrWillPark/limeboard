@@ -1,23 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  View,
-  useWindowDimensions,
-  type LayoutChangeEvent,
-} from 'react-native';
+import { useMemo } from 'react';
+import { ActivityIndicator, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  FadeIn,
-  FadeInDown,
-  FadeInRight,
-  useAnimatedProps,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Line, LinearGradient as SvgGradient, Path, Polyline, Stop } from 'react-native-svg';
 
 import { AppText } from '@/components/ui/app-text';
@@ -35,8 +19,6 @@ import {
 type Props = {
   compact?: boolean;
 };
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 const GAUGE_SIZE = 168;
 const GAUGE_RADIUS = 62;
@@ -66,6 +48,20 @@ function valueToAngle(value: number, max: number) {
   return START_ANGLE + ratio * SWEEP;
 }
 
+function isUsableSnapshot(
+  data: PlatformRankingsSnapshot | null | undefined
+): data is PlatformRankingsSnapshot {
+  return Boolean(
+    data &&
+      Array.isArray(data.topModels) &&
+      Array.isArray(data.volumeSeries) &&
+      Number.isFinite(data.tokensPerSecond) &&
+      Number.isFinite(data.totalTokens) &&
+      Number.isFinite(data.peakDayTokens) &&
+      Number.isFinite(data.leaderShare)
+  );
+}
+
 export function PlatformPulse({ compact }: Props) {
   const { data, isLoading, isError } = usePlatformRankings();
 
@@ -81,7 +77,7 @@ export function PlatformPulse({ compact }: Props) {
         end={{ x: 0.5, y: 1 }}
         style={{ padding: spacing.lg, gap: spacing.lg }}
       >
-        <Animated.View entering={FadeIn.duration(500)} style={{ gap: 6 }}>
+        <Animated.View entering={FadeIn.duration(400)} style={{ gap: 6 }}>
           <View
             style={{
               flexDirection: 'row',
@@ -106,7 +102,7 @@ export function PlatformPulse({ compact }: Props) {
           <View style={{ height: 220, justifyContent: 'center', alignItems: 'center' }}>
             <ActivityIndicator color={colors.limeSoft} size="large" />
           </View>
-        ) : isError || !data?.topModels || data.tokensPerSecond == null ? (
+        ) : isError || !isUsableSnapshot(data) ? (
           <AppText variant="caption" color={colors.textSecondary}>
             Platform stats are syncing. Check back soon or connect your key for personal
             metrics.
@@ -129,30 +125,15 @@ export function PlatformPulse({ compact }: Props) {
 }
 
 function LiveDot() {
-  const opacity = useSharedValue(1);
-
-  useEffect(() => {
-    opacity.value = withRepeat(
-      withSequence(withTiming(0.35, { duration: 900 }), withTiming(1, { duration: 900 })),
-      -1,
-      false
-    );
-  }, [opacity]);
-
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
-
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-      <Animated.View
-        style={[
-          {
-            width: 7,
-            height: 7,
-            borderRadius: 999,
-            backgroundColor: colors.lime,
-          },
-          style,
-        ]}
+      <View
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: 999,
+          backgroundColor: colors.lime,
+        }}
       />
       <AppText variant="caption" color={colors.limeSoft} style={{ fontSize: 11 }}>
         LIVE CACHE
@@ -162,30 +143,18 @@ function LiveDot() {
 }
 
 function PlatformHeroGauge({ data }: { data: PlatformRankingsSnapshot }) {
-  const maxTps = Math.max(data.peakDayTokens / 86_400, data.tokensPerSecond * 1.15, 1);
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    progress.value = 0;
-    progress.value = withDelay(200, withTiming(1, { duration: 1100 }));
-  }, [data.date, data.tokensPerSecond, progress]);
-
-  const needleAngle = valueToAngle(data.tokensPerSecond, maxTps);
-  const activeEnd = valueToAngle(data.tokensPerSecond, maxTps);
-  const needleTip = polar(needleAngle, GAUGE_RADIUS - 16);
-  const needleBaseL = polar(needleAngle - 90, 6);
-  const needleBaseR = polar(needleAngle + 90, 6);
-
-  const animatedProps = useAnimatedProps(() => {
-    const end = START_ANGLE + progress.value * (activeEnd - START_ANGLE);
-    return {
-      d: arcPath(START_ANGLE, Math.max(START_ANGLE + 0.01, end)),
-    };
-  });
+  const tps = data.tokensPerSecond;
+  const peak = Math.max(data.peakDayTokens, 1);
+  const maxTps = Math.max(peak / 86_400, tps * 1.15, 1);
+  const activeEnd = valueToAngle(tps, maxTps);
+  const needleTip = polar(activeEnd, GAUGE_RADIUS - 16);
+  const needleBaseL = polar(activeEnd - 90, 6);
+  const needleBaseR = polar(activeEnd + 90, 6);
+  const vsPeak = Math.round((data.totalTokens / peak) * 100);
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(80).duration(550)}
+      entering={FadeInDown.delay(60).duration(450)}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -207,13 +176,15 @@ function PlatformHeroGauge({ data }: { data: PlatformRankingsSnapshot }) {
             fill="none"
             strokeLinecap="round"
           />
-          <AnimatedPath
-            animatedProps={animatedProps}
-            stroke="url(#pulseArc)"
-            strokeWidth={10}
-            fill="none"
-            strokeLinecap="round"
-          />
+          {tps > 0 ? (
+            <Path
+              d={arcPath(START_ANGLE, Math.max(START_ANGLE + 0.5, activeEnd))}
+              stroke="url(#pulseArc)"
+              strokeWidth={10}
+              fill="none"
+              strokeLinecap="round"
+            />
+          ) : null}
           {[0.25, 0.5, 0.75, 1].map((t) => {
             const a = START_ANGLE + t * SWEEP;
             const inner = polar(a, GAUGE_RADIUS - 14);
@@ -258,7 +229,7 @@ function PlatformHeroGauge({ data }: { data: PlatformRankingsSnapshot }) {
             color={colors.lime}
             style={{ fontSize: 22, fontFamily: fonts.monoBold, letterSpacing: -0.8 }}
           >
-            {formatTokensPerSecond(data.tokensPerSecond)}
+            {formatTokensPerSecond(tps)}
           </AppText>
           <AppText variant="caption" color={colors.textMuted} style={{ fontSize: 11 }}>
             tok/sec · est.
@@ -274,12 +245,12 @@ function PlatformHeroGauge({ data }: { data: PlatformRankingsSnapshot }) {
         />
         <HeroStat
           label="Leader"
-          value={data.leaderModel}
+          value={data.leaderModel || '—'}
           hint={`${Math.round(data.leaderShare * 100)}% share`}
         />
         <HeroStat
           label="Vs peak day"
-          value={`${Math.round((data.totalTokens / data.peakDayTokens) * 100)}%`}
+          value={`${Number.isFinite(vsPeak) ? vsPeak : 0}%`}
           hint="of 14d high"
         />
       </View>
@@ -321,7 +292,7 @@ function VolumeTrend({ series }: { series: PlatformVolumePoint[] }) {
   const height = 72;
 
   const points = useMemo(() => {
-    if (series.length < 2) return '';
+    if (!series || series.length < 2) return '';
     const values = series.map((p) => p.tokens);
     const max = Math.max(...values, 1);
     const min = Math.min(...values, 0);
@@ -336,13 +307,13 @@ function VolumeTrend({ series }: { series: PlatformVolumePoint[] }) {
       .join(' ');
   }, [series, chartWidth]);
 
-  if (series.length < 2) return null;
+  if (!series || series.length < 2 || !points) return null;
 
   const first = series[0]!.date.slice(5);
   const last = series[series.length - 1]!.date.slice(5);
 
   return (
-    <Animated.View entering={FadeInDown.delay(160).duration(550)} style={{ gap: spacing.sm }}>
+    <Animated.View entering={FadeInDown.delay(120).duration(450)} style={{ gap: spacing.sm }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <AppText variant="label">14-day volume</AppText>
         <AppText variant="caption" color={colors.textMuted}>
@@ -377,21 +348,23 @@ function VolumeTrend({ series }: { series: PlatformVolumePoint[] }) {
 }
 
 function ModelShareBoard({ models }: { models: PlatformModelRank[] }) {
+  if (!models.length) return null;
   const max = Math.max(...models.map((m) => m.tokens), 1);
 
   return (
-    <Animated.View entering={FadeInDown.delay(240).duration(550)} style={{ gap: spacing.md }}>
+    <Animated.View entering={FadeInDown.delay(180).duration(450)} style={{ gap: spacing.md }}>
       <AppText variant="label">Top models</AppText>
       <View style={{ flexDirection: 'row', gap: spacing.lg, alignItems: 'center' }}>
         <ShareRing models={models} />
         <View style={{ flex: 1, gap: spacing.sm }}>
           {models.slice(0, 5).map((model, index) => (
-            <Animated.View
+            <ModelBar
               key={model.slug}
-              entering={FadeInRight.delay(280 + index * 60).duration(400)}
-            >
-              <ModelBar model={model} rank={index + 1} max={max} color={colors.chart[index % colors.chart.length]!} />
-            </Animated.View>
+              model={model}
+              rank={index + 1}
+              max={max}
+              color={colors.chart[index % colors.chart.length]!}
+            />
           ))}
         </View>
       </View>
@@ -461,21 +434,7 @@ function ModelBar({
   max: number;
   color: string;
 }) {
-  const [trackWidth, setTrackWidth] = useState(0);
-  const barWidth = useSharedValue(0);
-
-  useEffect(() => {
-    if (trackWidth <= 0) return;
-    barWidth.value = 0;
-    barWidth.value = withDelay(
-      200 + rank * 70,
-      withTiming(Math.max((model.tokens / max) * trackWidth, 4), { duration: 700 })
-    );
-  }, [model.tokens, max, rank, trackWidth, barWidth]);
-
-  const barStyle = useAnimatedStyle(() => ({
-    width: barWidth.value,
-  }));
+  const pct = Math.max((model.tokens / max) * 100, 2);
 
   return (
     <View style={{ gap: 4 }}>
@@ -488,10 +447,6 @@ function ModelBar({
         </AppText>
       </View>
       <View
-        onLayout={(e: LayoutChangeEvent) => {
-          const w = e.nativeEvent.layout.width;
-          if (w > 0 && w !== trackWidth) setTrackWidth(w);
-        }}
         style={{
           height: 7,
           borderRadius: 999,
@@ -499,15 +454,13 @@ function ModelBar({
           overflow: 'hidden',
         }}
       >
-        <Animated.View
-          style={[
-            {
-              height: '100%',
-              backgroundColor: color,
-              borderRadius: 999,
-            },
-            barStyle,
-          ]}
+        <View
+          style={{
+            height: '100%',
+            width: `${pct}%`,
+            backgroundColor: color,
+            borderRadius: 999,
+          }}
         />
       </View>
     </View>
@@ -534,7 +487,7 @@ function PlatformPulseCompact({
 
       {isLoading ? (
         <ActivityIndicator color={colors.limeSoft} />
-      ) : isError || !data?.topModels || data.tokensPerSecond == null ? (
+      ) : isError || !isUsableSnapshot(data) ? (
         <AppText variant="caption" color={colors.textSecondary}>
           Ecosystem rankings · syncing
         </AppText>
