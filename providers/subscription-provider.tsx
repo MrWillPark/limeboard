@@ -181,19 +181,4 @@ export function useSubscription() {
   return ctx;
 }
 
-export function useEntitlement() {
-  const { isPro, ready } = useSubscription();
-  return {
-    ready,
-    isPro,
-    canAccessSpendTrend: isPro,
-    canAccessTopModels: isPro,
-    canAccessTokenBreakdown: isPro,
-    canAccessFleetSnapshot: isPro,
-    canAccessExploreFull: isPro,
-    canAccessKeysFleet: isPro,
-    canGroupByModel: isPro,
-    canUseExploreFilters: isPro,
-    canUseIntradayRollups: isPro,
-  };
-}
+export { useEntitlement } from '@/hooks/use-entitlement';

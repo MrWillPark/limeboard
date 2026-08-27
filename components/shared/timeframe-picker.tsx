@@ -1,4 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -10,21 +12,66 @@ type Props = {
   onChange: (id: TimeframeId) => void;
   /** Compact segmented row without a label (for filter bars) */
   compact?: boolean;
-  /** When set, only these timeframes are selectable (Pro gate) */
+  /** When set, only these timeframes are selectable; others render as Pro upsell chips. */
   allowed?: TimeframeId[];
 };
 
 export function TimeframePicker({ value, onChange, compact, allowed }: Props) {
-  const options = allowed
-    ? TIMEFRAMES.filter((opt) => allowed.includes(opt.id))
-    : TIMEFRAMES;
+  const showLockedUpsell =
+    allowed != null && TIMEFRAMES.some((opt) => !allowed.includes(opt.id));
+
+  const openPaywall = () => {
+    if (process.env.EXPO_OS === 'ios') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
+    router.push('/paywall');
+  };
 
   return (
     <View style={{ gap: compact ? 4 : spacing.sm }}>
       {!compact ? <AppText variant="label">Timeframe</AppText> : null}
       <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-        {options.map((opt) => {
-          const active = opt.id === value;
+        {TIMEFRAMES.map((opt) => {
+          const locked = showLockedUpsell && !allowed!.includes(opt.id);
+          const active = !locked && opt.id === value;
+
+          if (locked) {
+            return (
+              <Pressable
+                key={opt.id}
+                accessibilityRole="button"
+                accessibilityLabel={`${opt.label}, LimeBoard Pro`}
+                onPress={openPaywall}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 4,
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: compact ? 10 : spacing.sm,
+                  borderRadius: compact ? radii.sm : radii.pill,
+                  borderCurve: 'continuous',
+                  borderWidth: 1,
+                  borderColor: colors.limeDim,
+                  borderStyle: 'dashed',
+                  backgroundColor: colors.bgElevated,
+                  minHeight: compact ? 34 : undefined,
+                }}
+              >
+                <AppText
+                  style={{
+                    fontSize: 13,
+                    color: colors.textMuted,
+                  }}
+                >
+                  {compact ? opt.short : opt.label}
+                </AppText>
+                <Ionicons name="lock-closed" size={11} color={colors.limeSoft} />
+              </Pressable>
+            );
+          }
+
           return (
             <Pressable
               key={opt.id}
@@ -59,6 +106,13 @@ export function TimeframePicker({ value, onChange, compact, allowed }: Props) {
           );
         })}
       </View>
+      {showLockedUpsell ? (
+        <AppText variant="caption" color={colors.textMuted}>
+          {compact
+            ? 'Pro unlocks 3H intraday and 30-day windows.'
+            : 'Upgrade to Pro for 3-hour intraday and 30-day history.'}
+        </AppText>
+      ) : null}
     </View>
   );
 }

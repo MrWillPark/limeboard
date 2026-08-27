@@ -16,8 +16,9 @@ import { useSubscription } from '@/providers/subscription-provider';
 
 export default function SettingsScreen() {
   const { user, signOut } = useSession();
-  const { isConnected, maskedKey, meta, disconnect } = useOpenRouter();
+  const { isConnected, maskedKey, meta, isAdminKey, disconnect } = useOpenRouter();
   const { isPro, showManageSubscriptions } = useSubscription();
+  const proUnlocked = isPro || isAdminKey;
   const [deleting, setDeleting] = useState(false);
 
   const onDisconnect = () => {
@@ -114,17 +115,19 @@ export default function SettingsScreen() {
       <Panel style={{ gap: spacing.md }}>
         <AppText variant="title">Subscription</AppText>
         <AppText variant="caption">
-          {isPro
-            ? 'LimeBoard Pro is active on this account.'
-            : 'Free tier — basic stats and 30-day Explore.'}
+          {isAdminKey
+            ? 'Admin key connected — all Pro and management features unlocked.'
+            : isPro
+              ? 'LimeBoard Pro is active on this account.'
+              : 'Free tier — basic stats and 30-day Explore.'}
         </AppText>
-        {isPro ? (
+        {proUnlocked && !isAdminKey ? (
           <AppButton
             title="Manage subscription"
             variant="ghost"
             onPress={() => void showManageSubscriptions()}
           />
-        ) : (
+        ) : isAdminKey ? null : (
           <AppButton title="Upgrade to Pro" onPress={() => router.push('/paywall')} />
         )}
       </Panel>
@@ -140,7 +143,11 @@ export default function SettingsScreen() {
               </AppText>
               <AppText variant="caption">
                 Saved {meta?.savedAt ? new Date(meta.savedAt).toLocaleString() : '—'}
-                {meta?.isManagementKey ? ' · management' : ' · standard'}
+                {meta?.isAdminKey
+                  ? ' · admin'
+                  : meta?.isManagementKey
+                    ? ' · management'
+                    : ' · standard'}
               </AppText>
             </View>
             <AppButton title="Replace key" variant="ghost" onPress={() => router.push('/connect')} />

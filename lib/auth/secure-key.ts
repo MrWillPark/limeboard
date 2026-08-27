@@ -7,6 +7,8 @@ export type StoredKeyMeta = {
   labelHint: string;
   savedAt: string;
   isManagementKey: boolean;
+  /** Unlocks Pro + management UI when the owner admin key is connected. */
+  isAdminKey?: boolean;
 };
 
 async function canUseSecureStore(): Promise<boolean> {

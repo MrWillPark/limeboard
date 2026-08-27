@@ -1,5 +1,6 @@
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
+import { enrichKeyMeta, isAdminApiKey } from '@/lib/auth/admin-key';
 import {
   clearApiKey,
   getApiKey,
@@ -16,6 +17,7 @@ type OpenRouterState = {
   meta: StoredKeyMeta | null;
   maskedKey: string | null;
   isConnected: boolean;
+  isAdminKey: boolean;
   connect: (apiKey: string) => Promise<void>;
   disconnect: () => Promise<void>;
   refreshMeta: () => Promise<void>;
@@ -27,6 +29,7 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
   const [ready, setReady] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [meta, setMeta] = useState<StoredKeyMeta | null>(null);
+  const [isAdminKey, setIsAdminKey] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,8 +37,30 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
       try {
         const [key, keyMeta] = await Promise.all([getApiKey(), getKeyMeta()]);
         if (cancelled) return;
+
+        if (!key) {
+          setApiKey(null);
+          setMeta(null);
+          setIsAdminKey(false);
+          return;
+        }
+
+        const admin = await isAdminApiKey(key);
+        const restoredMeta = keyMeta
+          ? enrichKeyMeta(key, keyMeta, admin)
+          : null;
+
+        if (
+          restoredMeta &&
+          admin &&
+          (!keyMeta?.isAdminKey || !keyMeta?.isManagementKey)
+        ) {
+          await saveApiKey(key, restoredMeta);
+        }
+
         setApiKey(key);
-        setMeta(keyMeta);
+        setMeta(restoredMeta);
+        setIsAdminKey(admin);
       } catch (e) {
         console.warn('Failed to restore API key from secure storage', e);
       } finally {
@@ -48,21 +73,25 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
   }, []);
 
   const connect = useCallback(async (rawKey: string) => {
-    const info = await validateApiKey(rawKey);
-    const nextMeta: StoredKeyMeta = {
+    const trimmed = rawKey.trim();
+    const info = await validateApiKey(trimmed);
+    const admin = await isAdminApiKey(trimmed);
+    const nextMeta = enrichKeyMeta(trimmed, {
       labelHint: info.label,
       savedAt: new Date().toISOString(),
       isManagementKey: info.is_management_key,
-    };
-    await saveApiKey(rawKey, nextMeta);
-    setApiKey(rawKey.trim());
+    }, admin);
+    await saveApiKey(trimmed, nextMeta);
+    setApiKey(trimmed);
     setMeta(nextMeta);
+    setIsAdminKey(admin);
   }, []);
 
   const disconnect = useCallback(async () => {
     await clearApiKey();
     setApiKey(null);
     setMeta(null);
+    setIsAdminKey(false);
   }, []);
 
   const refreshMeta = useCallback(async () => {
@@ -76,11 +105,12 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
       meta,
       maskedKey: apiKey ? maskKey(apiKey) : null,
       isConnected: Boolean(apiKey),
+      isAdminKey,
       connect,
       disconnect,
       refreshMeta,
     }),
-    [ready, apiKey, meta, connect, disconnect, refreshMeta]
+    [ready, apiKey, meta, isAdminKey, connect, disconnect, refreshMeta]
   );
 
   return <OpenRouterContext.Provider value={value}>{children}</OpenRouterContext.Provider>;
