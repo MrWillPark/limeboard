@@ -10,6 +10,7 @@ import {
   type StoredKeyMeta,
 } from '@/lib/auth/secure-key';
 import { validateApiKey } from '@/lib/openrouter/client';
+import { syncBalanceWidgetDisconnected } from '@/lib/widgets/sync-balance-widget';
 
 type OpenRouterState = {
   ready: boolean;
@@ -92,6 +93,7 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
     setApiKey(null);
     setMeta(null);
     setIsAdminKey(false);
+    syncBalanceWidgetDisconnected();
   }, []);
 
   const refreshMeta = useCallback(async () => {

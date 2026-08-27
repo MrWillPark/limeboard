@@ -85,6 +85,17 @@ export EXPO_APPLE_TEAM_ID=UZLYMT5D28
 
 Internal TestFlight testers get the build immediately after processing.
 
+### iOS Home Screen widgets
+
+Balance widget uses `expo-widgets` + App Group `group.app.limeboard.mobile`.
+
+1. First widget-enabled build: EAS registers the widget extension App ID (`app.limeboard.mobile.widgets`) and App Group entitlement.
+2. Rebuild after any `expo-widgets` plugin change in `app.json`.
+3. On device: long-press Home Screen → Add Widget → **LimeBoard Balance**.
+4. Widget content updates when Cockpit refreshes OpenRouter data (open the app).
+
+watchOS is out of scope for v1 — see README for App Store complexity notes.
+
 ---
 
 ## 5. Host Privacy / Terms on HTTPS

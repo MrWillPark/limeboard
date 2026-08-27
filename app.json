@@ -42,6 +42,26 @@
           "resizeMode": "contain",
           "backgroundColor": "#0B0E0D"
         }
+      ],
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "app.limeboard.mobile.widgets",
+          "groupIdentifier": "group.app.limeboard.mobile",
+          "widgets": [
+            {
+              "name": "BalanceWidget",
+              "displayName": "LimeBoard Balance",
+              "description": "OpenRouter credit balance, spend, and runway at a glance.",
+              "contentMarginsDisabled": true,
+              "supportedFamilies": [
+                "systemSmall",
+                "systemMedium",
+                "systemLarge"
+              ]
+            }
+          ]
+        }
       ]
     ],
     "experiments": {

@@ -49,6 +49,10 @@ import { useBurnRate } from '@/hooks/use-burn-rate';
 import { useEntitlement } from '@/providers/subscription-provider';
 import { useOpenRouter } from '@/providers/openrouter-provider';
 import { useSession } from '@/providers/session-provider';
+import {
+  syncBalanceWidget,
+  syncBalanceWidgetDisconnected,
+} from '@/lib/widgets/sync-balance-widget';
 
 const FREE_TIMEFRAMES: TimeframeId[] = ['today', '7d'];
 
@@ -102,6 +106,22 @@ export default function CockpitScreen() {
     burn.periodSpend,
     keyQuery.dataUpdatedAt,
     keysQuery.dataUpdatedAt,
+  ]);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!isConnected) {
+      syncBalanceWidgetDisconnected();
+      return;
+    }
+    syncBalanceWidget(burn, effectiveTimeframe);
+  }, [
+    ready,
+    isConnected,
+    burn,
+    effectiveTimeframe,
+    keyQuery.dataUpdatedAt,
+    creditsQuery.dataUpdatedAt,
   ]);
 
   const spendSeries = useMemo(() => {
