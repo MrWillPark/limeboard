@@ -87,12 +87,22 @@ Internal TestFlight testers get the build immediately after processing.
 
 ### iOS Home Screen widgets
 
-Balance widget uses `expo-widgets` + App Group `group.app.limeboard.mobile`.
+Balance and Desk Monitor widgets use `expo-widgets` + App Group `group.app.limeboard.mobile`.
 
 1. First widget-enabled build: EAS registers the widget extension App ID (`app.limeboard.mobile.widgets`) and App Group entitlement.
 2. Rebuild after any `expo-widgets` plugin change in `app.json`.
-3. On device: long-press Home Screen → Add Widget → **LimeBoard Balance**.
+3. On device: long-press Home Screen → Add Widget → **LimeBoard Balance** or **Desk Monitor**.
 4. Widget content updates when Cockpit refreshes OpenRouter data (open the app).
+
+**If the build fails with “provisioning profile doesn't support the … App Group”:**
+
+EAS sometimes creates the widget profile without the App Group linked. Fix:
+
+1. [Apple Developer → Identifiers](https://developer.apple.com/account/resources/identifiers/list) → `app.limeboard.mobile.widgets` → enable **App Groups** → check `group.app.limeboard.mobile`.
+2. Delete the stale widget profile: `eas credentials -p ios` → ExpoWidgetsTarget → remove provisioning profile.
+3. Re-run `eas build --profile development --platform ios`.
+
+`app.json` declares the extension entitlement under `extra.eas.build.experimental.ios.appExtensions` so EAS knows to include the group on regenerate.
 
 watchOS is out of scope for v1 — see README for App Store complexity notes.
 

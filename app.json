@@ -82,7 +82,24 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "9f30e8a6-6082-4de1-ae0f-46339d2acdef"
+        "projectId": "9f30e8a6-6082-4de1-ae0f-46339d2acdef",
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "ExpoWidgetsTarget",
+                  "bundleIdentifier": "app.limeboard.mobile.widgets",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.app.limeboard.mobile"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
       }
     },
     "owner": "willparksf"
