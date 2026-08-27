@@ -42,5 +42,32 @@ Then open in Expo Go (iOS/Android) or press `i` / `a` / `w`.
 
 - Velocity anomaly alerts  
 - Model cost arbitrage suggestions  
-- Home Screen widgets / Live Activities  
+- Live Activities (burn spike / runway alerts)  
 - Stretch: startup infrastructure burn tracker  
+- Stretch: watchOS companion (separate native target; see notes below)
+
+## iOS Home Screen widget
+
+LimeBoard ships an iOS **Balance** widget via [`expo-widgets`](https://docs.expo.dev/versions/v57.0.0/sdk/widgets/) (SDK 57). It shows account balance, period spend, avg/day, and runway.
+
+- Requires a **development or production native build** (not Expo Go).
+- Config lives in `app.json` under the `expo-widgets` plugin (App Group `group.app.limeboard.mobile`, extension `app.limeboard.mobile.widgets`).
+- Widget UI: `widgets/BalanceWidget.tsx`. Cockpit pushes snapshots via `lib/widgets/sync-balance-widget.ts`.
+- After changing the plugin config, rebuild the iOS binary (`eas build` / prebuild).
+
+### watchOS — complexity note
+
+An Apple Watch app or watchOS widget is **not** included in `expo-widgets`. It needs a separate watchOS target (typically SwiftUI via `@bacons/apple-targets` or a custom config plugin), App Groups for shared data, and EAS multi-target credentials.
+
+**App Store submission impact is modest, not a second app review:**
+
+| Concern | iOS widget (`expo-widgets`) | watchOS app / widget |
+| --- | --- | --- |
+| Bundle / review | Same LimeBoard listing; extension embeds in the iPhone IPA | Same listing; Watch app embeds in the iPhone IPA |
+| Extra App Store product | No | No (companion Watch app, not a separate SKU) |
+| Signing / EAS | Extra App ID + App Group; plugin declares `appExtensions` | Extra Watch App ID(s) + App Group; more credentials on first build |
+| Implementation | TypeScript + Expo UI | Mostly native SwiftUI (Expo does not run RN on watchOS) |
+| Screenshots / metadata | Optional widget gallery shots | Watch screenshots if you promote Watch features |
+| Review risk | Low — extension of existing app | Slightly higher surface (Watch UX, privacy, entitlements) but still one submission |
+
+**Bottom line:** iOS home-screen widgets add a little signing/build complexity and are well-supported in Expo SDK 57. watchOS is a **larger product/engineering cost** (native UI + sync design) but **not a dramatically heavier App Store process** — still one IPA, one listing, one review. Skip watchOS until the iPhone widget proves useful.
