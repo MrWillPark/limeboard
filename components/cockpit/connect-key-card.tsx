@@ -59,7 +59,11 @@ export function ConnectKeyCard({ onSuccess }: Props) {
         placeholderTextColor={colors.textMuted}
         autoCapitalize="none"
         autoCorrect={false}
+        autoFocus
         secureTextEntry
+        returnKeyType="done"
+        blurOnSubmit
+        onSubmitEditing={() => void onConnect()}
         style={{
           minHeight: 48,
           borderWidth: 1,

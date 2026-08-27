@@ -15,8 +15,8 @@ import {
   SessionKeyPanel,
   TokenBreakdownPanel,
 } from '@/components/cockpit/cockpit-modules';
-import { ConnectKeyCard } from '@/components/cockpit/connect-key-card';
 import { PlatformPulse } from '@/components/cockpit/platform-pulse';
+import { AppButton } from '@/components/ui/app-button';
 import { SpendTrendChart } from '@/components/cockpit/spend-trend-chart';
 import { TopModelsPanel } from '@/components/cockpit/top-models-panel';
 import {
@@ -206,8 +206,8 @@ export default function CockpitScreen() {
               Connect an OpenRouter key to unlock personal balance, burn rate, and runway —
               the same instrumentation you just saw for the whole ecosystem.
             </AppText>
+            <AppButton title="Connect OpenRouter" onPress={() => router.push('/connect')} />
           </Panel>
-          <ConnectKeyCard />
         </>
       ) : (
         <>
