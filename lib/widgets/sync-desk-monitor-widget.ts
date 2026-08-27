@@ -4,10 +4,9 @@ import {
   formatRateUnit,
   type BurnRateSnapshot,
 } from '@/lib/analytics/burn-rate';
+import { isWidgetSyncAvailable } from '@/lib/widgets/widget-sync-available';
 
-import DeskMonitorWidget, {
-  type DeskMonitorWidgetProps,
-} from '@/widgets/DeskMonitorWidget';
+import type { DeskMonitorWidgetProps } from '@/widgets/DeskMonitorWidget';
 
 const DISCONNECTED: DeskMonitorWidgetProps = {
   connected: false,
@@ -35,12 +34,22 @@ function normalizeHistory(values: number[]): number[] {
   return values.map((v) => v / max);
 }
 
+function pushDeskMonitorSnapshot(props: DeskMonitorWidgetProps) {
+  if (!isWidgetSyncAvailable()) return;
+  try {
+    const DeskMonitorWidget = require('@/widgets/DeskMonitorWidget').default;
+    DeskMonitorWidget.updateSnapshot(props);
+  } catch {
+    // Native widget extension not present in this build.
+  }
+}
+
 export function syncDeskMonitorWidgetDisconnected() {
-  DeskMonitorWidget.updateSnapshot(DISCONNECTED);
+  pushDeskMonitorSnapshot(DISCONNECTED);
 }
 
 export function syncDeskMonitorWidget(snapshot: BurnRateSnapshot) {
-  const props: DeskMonitorWidgetProps = {
+  pushDeskMonitorSnapshot({
     connected: true,
     mode: snapshot.mode,
     rateLabel: formatRatePerSecondCompact(snapshot.currentPerSecond, snapshot.mode),
@@ -50,6 +59,5 @@ export function syncDeskMonitorWidget(snapshot: BurnRateSnapshot) {
     updatedLabel: formatUpdatedLabel(snapshot.lastUpdated),
     sourceLabel: snapshot.sourceLabel,
     history: normalizeHistory(snapshot.historyPerMinute),
-  };
-  DeskMonitorWidget.updateSnapshot(props);
+  });
 }

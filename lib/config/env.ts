@@ -24,3 +24,9 @@ export function isRevenueCatConfigured(): boolean {
   if (process.env.EXPO_OS === 'android') return Boolean(env.revenueCatAndroidKey);
   return Boolean(env.revenueCatIosKey || env.revenueCatAndroidKey);
 }
+
+/** RevenueCat native IAP requires a dev/production build — not Expo Go. */
+export function canUseRevenueCatNative(): boolean {
+  if (Constants.appOwnership === 'expo') return false;
+  return isRevenueCatConfigured();
+}

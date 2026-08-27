@@ -1,15 +1,20 @@
-import { useOpenRouter } from '@/providers/openrouter-provider';
+import { useAdminAccount } from '@/hooks/use-admin-account';
+import { useScreenshotPreviewOptional } from '@/providers/screenshot-preview-provider';
 import { useSubscription } from '@/providers/subscription-provider';
 
 export function useEntitlement() {
   const { isPro, ready } = useSubscription();
-  const { isAdminKey } = useOpenRouter();
-  const unlocked = isPro || isAdminKey;
+  const { realIsAdminAccount, isAdminAccount } = useAdminAccount();
+  const preview = useScreenshotPreviewOptional();
+  const previewBlocksPro = preview?.mode === 'no-pro';
+  const unlocked = previewBlocksPro ? false : isPro || realIsAdminAccount;
 
   return {
     ready,
     isPro: unlocked,
-    isAdminKey,
+    isAdminAccount,
+    /** @deprecated Use isAdminAccount */
+    isAdminKey: isAdminAccount,
     canAccessSpendTrend: unlocked,
     canAccessTopModels: unlocked,
     canAccessTokenBreakdown: unlocked,

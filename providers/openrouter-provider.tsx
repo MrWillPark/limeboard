@@ -1,6 +1,5 @@
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { enrichKeyMeta, isAdminApiKey } from '@/lib/auth/admin-key';
 import {
   clearApiKey,
   getApiKey,
@@ -11,6 +10,7 @@ import {
 } from '@/lib/auth/secure-key';
 import { validateApiKey } from '@/lib/openrouter/client';
 import { syncBalanceWidgetDisconnected } from '@/lib/widgets/sync-balance-widget';
+import { useScreenshotPreviewOptional } from '@/providers/screenshot-preview-provider';
 
 type OpenRouterState = {
   ready: boolean;
@@ -18,7 +18,8 @@ type OpenRouterState = {
   meta: StoredKeyMeta | null;
   maskedKey: string | null;
   isConnected: boolean;
-  isAdminKey: boolean;
+  /** True when a key is stored — ignores screenshot preview overlay. */
+  realIsConnected: boolean;
   connect: (apiKey: string) => Promise<void>;
   disconnect: () => Promise<void>;
   refreshMeta: () => Promise<void>;
@@ -30,7 +31,7 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
   const [ready, setReady] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [meta, setMeta] = useState<StoredKeyMeta | null>(null);
-  const [isAdminKey, setIsAdminKey] = useState(false);
+  const preview = useScreenshotPreviewOptional();
 
   useEffect(() => {
     let cancelled = false;
@@ -42,26 +43,11 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
         if (!key) {
           setApiKey(null);
           setMeta(null);
-          setIsAdminKey(false);
           return;
         }
 
-        const admin = await isAdminApiKey(key);
-        const restoredMeta = keyMeta
-          ? enrichKeyMeta(key, keyMeta, admin)
-          : null;
-
-        if (
-          restoredMeta &&
-          admin &&
-          (!keyMeta?.isAdminKey || !keyMeta?.isManagementKey)
-        ) {
-          await saveApiKey(key, restoredMeta);
-        }
-
         setApiKey(key);
-        setMeta(restoredMeta);
-        setIsAdminKey(admin);
+        setMeta(keyMeta);
       } catch (e) {
         console.warn('Failed to restore API key from secure storage', e);
       } finally {
@@ -76,23 +62,20 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
   const connect = useCallback(async (rawKey: string) => {
     const trimmed = rawKey.trim();
     const info = await validateApiKey(trimmed);
-    const admin = await isAdminApiKey(trimmed);
-    const nextMeta = enrichKeyMeta(trimmed, {
+    const nextMeta: StoredKeyMeta = {
       labelHint: info.label,
       savedAt: new Date().toISOString(),
       isManagementKey: info.is_management_key,
-    }, admin);
+    };
     await saveApiKey(trimmed, nextMeta);
     setApiKey(trimmed);
     setMeta(nextMeta);
-    setIsAdminKey(admin);
   }, []);
 
   const disconnect = useCallback(async () => {
     await clearApiKey();
     setApiKey(null);
     setMeta(null);
-    setIsAdminKey(false);
     syncBalanceWidgetDisconnected();
   }, []);
 
@@ -100,19 +83,23 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
     setMeta(await getKeyMeta());
   }, []);
 
+  const realIsConnected = Boolean(apiKey);
+  const previewMode = preview?.mode ?? 'live';
+  const displayIsConnected = previewMode === 'no-key' ? false : realIsConnected;
+
   const value = useMemo<OpenRouterState>(
     () => ({
       ready,
       apiKey,
       meta,
       maskedKey: apiKey ? maskKey(apiKey) : null,
-      isConnected: Boolean(apiKey),
-      isAdminKey,
+      isConnected: displayIsConnected,
+      realIsConnected,
       connect,
       disconnect,
       refreshMeta,
     }),
-    [ready, apiKey, meta, isAdminKey, connect, disconnect, refreshMeta]
+    [ready, apiKey, meta, displayIsConnected, realIsConnected, connect, disconnect, refreshMeta]
   );
 
   return <OpenRouterContext.Provider value={value}>{children}</OpenRouterContext.Provider>;

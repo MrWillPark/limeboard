@@ -15,8 +15,9 @@ import Purchases, {
   type PurchasesPackage,
 } from 'react-native-purchases';
 
-import { env, isRevenueCatConfigured } from '@/lib/config/env';
+import { env, canUseRevenueCatNative } from '@/lib/config/env';
 import { PRO_ENTITLEMENT } from '@/lib/config/products';
+import { useScreenshotPreviewOptional } from '@/providers/screenshot-preview-provider';
 import { useSession } from '@/providers/session-provider';
 
 const ENTITLEMENT = PRO_ENTITLEMENT;
@@ -36,7 +37,7 @@ const SubscriptionContext = createContext<SubscriptionState | null>(null);
 
 export function SubscriptionProvider({ children }: PropsWithChildren) {
   const { user, session } = useSession();
-  const [ready, setReady] = useState(!isRevenueCatConfigured());
+  const [ready, setReady] = useState(!canUseRevenueCatNative());
   const [isPro, setIsPro] = useState(env.devPro);
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
@@ -48,7 +49,7 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
-    if (!isRevenueCatConfigured()) {
+    if (!canUseRevenueCatNative()) {
       setReady(true);
       setIsPro(env.devPro);
       return;
@@ -99,7 +100,7 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
   }, [user?.id, applyCustomerInfo]);
 
   useEffect(() => {
-    if (!isRevenueCatConfigured() || !user?.id || !session) return;
+    if (!canUseRevenueCatNative() || !user?.id || !session) return;
 
     (async () => {
       try {
@@ -113,7 +114,7 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
   }, [user?.id, session, applyCustomerInfo]);
 
   useEffect(() => {
-    if (!isRevenueCatConfigured()) return;
+    if (!canUseRevenueCatNative()) return;
 
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
@@ -126,7 +127,7 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
   }, [applyCustomerInfo]);
 
   const refresh = useCallback(async () => {
-    if (!isRevenueCatConfigured()) return;
+    if (!canUseRevenueCatNative()) return;
     const info = await Purchases.getCustomerInfo();
     applyCustomerInfo(info);
     setOfferings(await Purchases.getOfferings());
@@ -134,7 +135,7 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
 
   const purchase = useCallback(
     async (pkg: PurchasesPackage) => {
-      if (!isRevenueCatConfigured()) {
+      if (!canUseRevenueCatNative()) {
         throw new Error('Subscriptions are not configured yet');
       }
       const { customerInfo: info } = await Purchases.purchasePackage(pkg);
@@ -144,7 +145,7 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
   );
 
   const restore = useCallback(async () => {
-    if (!isRevenueCatConfigured()) {
+    if (!canUseRevenueCatNative()) {
       throw new Error('Subscriptions are not configured yet');
     }
     const info = await Purchases.restorePurchases();
@@ -152,7 +153,7 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
   }, [applyCustomerInfo]);
 
   const showManageSubscriptions = useCallback(async () => {
-    if (!isRevenueCatConfigured()) return;
+    if (!canUseRevenueCatNative()) return;
     await Purchases.showManageSubscriptions();
   }, []);
 
@@ -178,7 +179,11 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
 export function useSubscription() {
   const ctx = useContext(SubscriptionContext);
   if (!ctx) throw new Error('useSubscription must be used within SubscriptionProvider');
-  return ctx;
+
+  const preview = useScreenshotPreviewOptional();
+  if (preview?.mode !== 'no-pro') return ctx;
+
+  return { ...ctx, isPro: false };
 }
 
 export { useEntitlement } from '@/hooks/use-entitlement';

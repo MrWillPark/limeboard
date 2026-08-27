@@ -1,12 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { View } from 'react-native';
 
+import { ScreenshotPreviewBanner } from '@/components/shared/screenshot-preview-banner';
 import { colors, fonts } from '@/constants/theme';
 
 export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={{
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScreenshotPreviewBanner />
+      <Tabs
+        screenOptions={{
         headerStyle: { backgroundColor: colors.bg },
         headerTintColor: colors.text,
         headerShadowVisible: false,
@@ -66,5 +70,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </View>
   );
 }

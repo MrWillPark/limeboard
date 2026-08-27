@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, Linking, ScrollView, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import Purchases from 'react-native-purchases';
 
@@ -9,16 +9,29 @@ import { Panel } from '@/components/ui/panel';
 import { colors, spacing } from '@/constants/theme';
 import { deleteLimeBoardAccount } from '@/lib/auth/delete-account';
 import { LEGAL } from '@/lib/config/legal';
-import { isRevenueCatConfigured } from '@/lib/config/env';
+import { canUseRevenueCatNative, env } from '@/lib/config/env';
+import { useAdminAccount } from '@/hooks/use-admin-account';
 import { useOpenRouter } from '@/providers/openrouter-provider';
+import {
+  type ScreenshotPreviewMode,
+  useScreenshotPreview,
+} from '@/providers/screenshot-preview-provider';
 import { useSession } from '@/providers/session-provider';
 import { useSubscription } from '@/providers/subscription-provider';
 
+const PREVIEW_MODES: { id: ScreenshotPreviewMode; label: string }[] = [
+  { id: 'live', label: 'Live' },
+  { id: 'no-key', label: 'No key' },
+  { id: 'no-pro', label: 'No Pro' },
+];
+
 export default function SettingsScreen() {
   const { user, signOut } = useSession();
-  const { isConnected, maskedKey, meta, isAdminKey, disconnect } = useOpenRouter();
+  const { isConnected, maskedKey, meta, realIsConnected, disconnect } = useOpenRouter();
+  const { isAdminAccount, realIsAdminAccount } = useAdminAccount();
   const { isPro, showManageSubscriptions } = useSubscription();
-  const proUnlocked = isPro || isAdminKey;
+  const { mode: previewMode, setMode: setPreviewMode } = useScreenshotPreview();
+  const proUnlocked = isPro || isAdminAccount;
   const [deleting, setDeleting] = useState(false);
 
   const onDisconnect = () => {
@@ -35,7 +48,7 @@ export default function SettingsScreen() {
   };
 
   const signOutAccount = useCallback(async () => {
-    if (isRevenueCatConfigured()) {
+    if (canUseRevenueCatNative()) {
       try {
         await Purchases.logOut();
       } catch {
@@ -95,6 +108,30 @@ export default function SettingsScreen() {
       style={{ flex: 1, backgroundColor: colors.bg }}
       contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: 40 }}
     >
+      {__DEV__ ? (
+        <Panel
+          style={{
+            gap: spacing.sm,
+            borderColor: previewMode !== 'live' ? colors.amber : colors.borderStrong,
+            backgroundColor: previewMode !== 'live' ? colors.amberDim : colors.panel,
+          }}
+        >
+          <AppText variant="title" style={{ fontSize: 15 }}>
+            Dev · access status
+          </AppText>
+          <AppText variant="caption" color={colors.textSecondary}>
+            Preview: {previewMode} · Key: {realIsConnected ? 'connected' : 'missing'} · Admin
+            account: {realIsAdminAccount ? 'yes' : 'no'} · DEV_PRO: {env.devPro ? 'on' : 'off'}
+          </AppText>
+          {previewMode !== 'live' ? (
+            <AppButton title="Exit preview → Live" onPress={() => setPreviewMode('live')} />
+          ) : null}
+          {!realIsConnected ? (
+            <AppButton title="Connect OpenRouter key" onPress={() => router.push('/connect')} />
+          ) : null}
+        </Panel>
+      ) : null}
+
       <Panel style={{ gap: spacing.md }}>
         <AppText variant="title">LimeBoard account</AppText>
         <View style={{ gap: 4 }}>
@@ -115,22 +152,70 @@ export default function SettingsScreen() {
       <Panel style={{ gap: spacing.md }}>
         <AppText variant="title">Subscription</AppText>
         <AppText variant="caption">
-          {isAdminKey
-            ? 'Admin key connected — all Pro and management features unlocked.'
+          {realIsAdminAccount
+            ? 'Owner account — all Pro and management features unlocked.'
             : isPro
               ? 'LimeBoard Pro is active on this account.'
               : 'Free tier — basic stats and 30-day Explore.'}
         </AppText>
-        {proUnlocked && !isAdminKey ? (
+        {proUnlocked && !realIsAdminAccount ? (
           <AppButton
             title="Manage subscription"
             variant="ghost"
             onPress={() => void showManageSubscriptions()}
           />
-        ) : isAdminKey ? null : (
+        ) : realIsAdminAccount ? null : (
           <AppButton title="Upgrade to Pro" onPress={() => router.push('/paywall')} />
         )}
       </Panel>
+
+      {realIsAdminAccount ? (
+        <Panel
+          style={{
+            gap: spacing.md,
+            borderColor: colors.amber,
+            backgroundColor: colors.amberDim,
+          }}
+        >
+          <AppText variant="title" color={colors.amber}>
+            Screenshot preview
+          </AppText>
+          <AppText variant="caption" color={colors.textSecondary}>
+            Fake no-key / no-Pro UI for App Store shots. Your real key stays connected — switch
+            back to Live when done.
+          </AppText>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            {PREVIEW_MODES.map(({ id, label }) => {
+              const active = previewMode === id;
+              return (
+                <Pressable
+                  key={id}
+                  onPress={() => setPreviewMode(id)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.sm,
+                    borderRadius: 10,
+                    borderCurve: 'continuous',
+                    borderWidth: 1,
+                    borderColor: active ? colors.amber : colors.borderStrong,
+                    backgroundColor: active ? 'rgba(245, 158, 11, 0.2)' : colors.panel,
+                    alignItems: 'center',
+                  }}
+                >
+                  <AppText
+                    variant="label"
+                    color={active ? colors.amber : colors.textSecondary}
+                    style={{ fontSize: 11 }}
+                  >
+                    {label}
+                  </AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Panel>
+      ) : null}
 
       <Panel style={{ gap: spacing.md }}>
         <AppText variant="title">Desk Monitor</AppText>
@@ -151,11 +236,7 @@ export default function SettingsScreen() {
               </AppText>
               <AppText variant="caption">
                 Saved {meta?.savedAt ? new Date(meta.savedAt).toLocaleString() : '—'}
-                {meta?.isAdminKey
-                  ? ' · admin'
-                  : meta?.isManagementKey
-                    ? ' · management'
-                    : ' · standard'}
+                {meta?.isManagementKey ? ' · management' : ' · standard'}
               </AppText>
             </View>
             <AppButton title="Replace key" variant="ghost" onPress={() => router.push('/connect')} />

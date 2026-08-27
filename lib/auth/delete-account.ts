@@ -1,7 +1,7 @@
 import { env, isSupabaseConfigured } from '@/lib/config/env';
 import { clearApiKey } from '@/lib/auth/secure-key';
 import { getSupabase } from '@/lib/supabase/client';
-import { isRevenueCatConfigured } from '@/lib/config/env';
+import { canUseRevenueCatNative } from '@/lib/config/env';
 import Purchases from 'react-native-purchases';
 
 /**
@@ -51,7 +51,7 @@ export async function deleteLimeBoardAccount(): Promise<void> {
     // ignore local key clear failures
   }
 
-  if (isRevenueCatConfigured()) {
+  if (canUseRevenueCatNative()) {
     try {
       await Purchases.logOut();
     } catch {

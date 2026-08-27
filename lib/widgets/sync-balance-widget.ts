@@ -3,10 +3,9 @@ import {
   type BurnSnapshot,
 } from '@/lib/analytics/burn';
 import { timeframeLabel, type TimeframeId } from '@/lib/analytics/timeframe';
+import { isWidgetSyncAvailable } from '@/lib/widgets/widget-sync-available';
 
-import BalanceWidget, {
-  type BalanceWidgetProps,
-} from '@/widgets/BalanceWidget';
+import type { BalanceWidgetProps } from '@/widgets/BalanceWidget';
 
 const DISCONNECTED: BalanceWidgetProps = {
   connected: false,
@@ -17,21 +16,31 @@ const DISCONNECTED: BalanceWidgetProps = {
   avgDailyLabel: '—',
 };
 
+function pushBalanceSnapshot(props: BalanceWidgetProps) {
+  if (!isWidgetSyncAvailable()) return;
+  try {
+    // Lazy load — expo-widgets is not available in Expo Go.
+    const BalanceWidget = require('@/widgets/BalanceWidget').default;
+    BalanceWidget.updateSnapshot(props);
+  } catch {
+    // Native widget extension not present in this build.
+  }
+}
+
 export function syncBalanceWidgetDisconnected() {
-  BalanceWidget.updateSnapshot(DISCONNECTED);
+  pushBalanceSnapshot(DISCONNECTED);
 }
 
 export function syncBalanceWidget(
   burn: BurnSnapshot,
   timeframe: TimeframeId
 ) {
-  const props: BalanceWidgetProps = {
+  pushBalanceSnapshot({
     connected: true,
     balanceLabel: formatUsd(burn.accountBalance),
     spendLabel: formatUsd(burn.periodSpend),
     spendCaption: `Spend · ${timeframeLabel(timeframe)}`,
     runwayLabel: burn.runwayLabel || '—',
     avgDailyLabel: formatUsd(burn.avgDailySpend),
-  };
-  BalanceWidget.updateSnapshot(props);
+  });
 }
