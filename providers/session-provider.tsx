@@ -9,18 +9,18 @@ import {
 } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import * as WebBrowser from 'expo-web-browser';
 
+import { signInWithOAuthProvider } from '@/lib/auth/oauth';
 import { getSupabase } from '@/lib/supabase/client';
 import { isSupabaseConfigured } from '@/lib/config/env';
-
-WebBrowser.maybeCompleteAuthSession();
+import { useOAuthDeepLinkHandler } from '@/hooks/use-oauth-deep-link';
 
 type SessionState = {
   ready: boolean;
   session: Session | null;
   user: User | null;
   signInWithApple: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -31,6 +31,8 @@ const SessionContext = createContext<SessionState | null>(null);
 export function SessionProvider({ children }: PropsWithChildren) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+
+  useOAuthDeepLinkHandler();
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -79,6 +81,10 @@ export function SessionProvider({ children }: PropsWithChildren) {
     if (error) throw error;
   }, []);
 
+  const signInWithGoogle = useCallback(async () => {
+    await signInWithOAuthProvider('google');
+  }, []);
+
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error('Supabase is not configured');
@@ -109,11 +115,12 @@ export function SessionProvider({ children }: PropsWithChildren) {
       session,
       user: session?.user ?? null,
       signInWithApple,
+      signInWithGoogle,
       signInWithEmail,
       signUpWithEmail,
       signOut,
     }),
-    [ready, session, signInWithApple, signInWithEmail, signUpWithEmail, signOut]
+    [ready, session, signInWithApple, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

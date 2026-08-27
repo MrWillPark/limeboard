@@ -15,6 +15,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     if (!ready) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inOAuthCallback = segments[0] === 'auth' && segments[1] === 'callback';
 
     if (!isSupabaseConfigured()) {
       if (inAuthGroup) {
@@ -23,7 +24,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (!session && !inAuthGroup) {
+    if (!session && !inAuthGroup && !inOAuthCallback) {
       router.replace('/(auth)/welcome');
       return;
     }

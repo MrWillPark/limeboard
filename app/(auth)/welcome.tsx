@@ -7,24 +7,38 @@ import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
 import { colors, spacing } from '@/constants/theme';
+import { getOAuthRedirectUri } from '@/lib/auth/oauth';
 import { isSupabaseConfigured } from '@/lib/config/env';
 import { useSession } from '@/providers/session-provider';
 
 export default function WelcomeScreen() {
-  const { signInWithApple } = useSession();
+  const { signInWithApple, signInWithGoogle } = useSession();
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<'apple' | 'google' | null>(null);
 
   const onApple = async () => {
     setError(null);
-    setLoading(true);
+    setLoading('apple');
     try {
       await signInWithApple();
     } catch (e) {
       if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return;
       setError(e instanceof Error ? e.message : 'Sign in failed');
     } finally {
-      setLoading(false);
+      setLoading(null);
+    }
+  };
+
+  const onGoogle = async () => {
+    setError(null);
+    setLoading('google');
+    try {
+      await signInWithGoogle();
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('cancelled')) return;
+      setError(e instanceof Error ? e.message : 'Sign in failed');
+    } finally {
+      setLoading(null);
     }
   };
 
@@ -75,15 +89,22 @@ export default function WelcomeScreen() {
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
             buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
             cornerRadius={12}
-            style={{ width: '100%', height: 48 }}
+            style={{ width: '100%', height: 48, opacity: loading === 'apple' ? 0.6 : 1 }}
             onPress={() => void onApple()}
           />
         ) : null}
 
         <AppButton
-          title={Platform.OS === 'ios' ? 'Continue with email' : 'Sign in with email'}
+          title="Continue with Google"
           variant={Platform.OS === 'ios' ? 'ghost' : 'primary'}
-          disabled={loading}
+          disabled={loading !== null}
+          onPress={() => void onGoogle()}
+        />
+
+        <AppButton
+          title="Continue with email"
+          variant="ghost"
+          disabled={loading !== null}
           onPress={() => router.push('/(auth)/sign-in')}
         />
 
@@ -93,6 +114,13 @@ export default function WelcomeScreen() {
           </AppText>
         ) : null}
       </Panel>
+
+      {__DEV__ ? (
+        <AppText variant="caption" color={colors.textMuted} selectable>
+          OAuth redirect (add to Supabase → Auth → URL configuration):{' '}
+          {getOAuthRedirectUri()}
+        </AppText>
+      ) : null}
 
       <AppText variant="caption" color={colors.textMuted}>
         By continuing you agree to our Terms and Privacy Policy. OpenRouter API keys stay
