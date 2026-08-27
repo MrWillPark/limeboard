@@ -1,5 +1,6 @@
-# Run daily (Supabase Dashboard → Edge Functions → sync-rankings → schedule)
-# Or: supabase functions invoke sync-rankings --no-verify-jwt
+# Platform Pulse rankings sync
+# Scheduled via pg_cron (migration 20260327000000) at 06:15 UTC daily.
+# Manual: curl -X POST "https://yitejhvhkpuklapxhpqk.supabase.co/functions/v1/sync-rankings"
 
 [functions.sync-rankings]
 verify_jwt = false
