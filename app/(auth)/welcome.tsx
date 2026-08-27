@@ -1,20 +1,33 @@
-import { useState } from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
 import { colors, spacing } from '@/constants/theme';
-import { getOAuthRedirectUri } from '@/lib/auth/oauth';
+import { isAppleSignInAvailable } from '@/lib/auth/apple';
+import {
+  getOAuthRedirectBlockReason,
+  getOAuthRedirectUri,
+} from '@/lib/auth/oauth';
 import { isSupabaseConfigured } from '@/lib/config/env';
 import { useSession } from '@/providers/session-provider';
 
 export default function WelcomeScreen() {
+  const insets = useSafeAreaInsets();
   const { signInWithApple, signInWithGoogle } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<'apple' | 'google' | null>(null);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  const redirectUri = getOAuthRedirectUri();
+  const googleBlockedReason = getOAuthRedirectBlockReason(redirectUri);
+
+  useEffect(() => {
+    void isAppleSignInAvailable().then(setAppleAvailable);
+  }, []);
 
   const onApple = async () => {
     setError(null);
@@ -45,11 +58,18 @@ export default function WelcomeScreen() {
   if (!isSupabaseConfigured()) {
     return (
       <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
         style={{ flex: 1, backgroundColor: colors.bg }}
-        contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, flexGrow: 1 }}
+        contentContainerStyle={{
+          paddingTop: insets.top + spacing.lg,
+          paddingHorizontal: spacing.lg,
+          paddingBottom: insets.bottom + spacing.lg,
+          gap: spacing.lg,
+          flexGrow: 1,
+        }}
       >
         <View style={{ flex: 1, justifyContent: 'center', gap: spacing.lg }}>
-          <AppText variant="title">LimeBoard</AppText>
+          <AppText variant="display">LimeBoard</AppText>
           <AppText>
             Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and
             EXPO_PUBLIC_SUPABASE_ANON_KEY to enable the login gate.
@@ -62,21 +82,21 @@ export default function WelcomeScreen() {
 
   return (
     <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
       style={{ flex: 1, backgroundColor: colors.bg }}
       contentContainerStyle={{
-        padding: spacing.xl,
+        paddingTop: insets.top + spacing.xl,
+        paddingHorizontal: spacing.xl,
+        paddingBottom: insets.bottom + spacing.xxl,
         gap: spacing.xl,
-        flexGrow: 1,
-        justifyContent: 'center',
       }}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={{ gap: spacing.sm }}>
         <AppText variant="label" color={colors.limeSoft}>
           OpenRouter analytics
         </AppText>
-        <AppText style={{ fontSize: 34, fontFamily: 'DMSans_700Bold', color: colors.text }}>
-          LimeBoard
-        </AppText>
+        <AppText variant="display">LimeBoard</AppText>
         <AppText>
           Track balance, burn rate, and model spend. Sign in to sync your subscription
           and access platform-wide rankings — even before you connect a key.
@@ -84,7 +104,7 @@ export default function WelcomeScreen() {
       </View>
 
       <Panel style={{ gap: spacing.md }}>
-        {Platform.OS === 'ios' ? (
+        {appleAvailable ? (
           <AppleAuthentication.AppleAuthenticationButton
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
             buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
@@ -92,14 +112,28 @@ export default function WelcomeScreen() {
             style={{ width: '100%', height: 48, opacity: loading === 'apple' ? 0.6 : 1 }}
             onPress={() => void onApple()}
           />
+        ) : Platform.OS === 'ios' ? (
+          <AppText variant="caption" color={colors.textSecondary}>
+            Sign in with Apple requires a dev build (not supported in Expo Go). Use Google or
+            email below.
+          </AppText>
         ) : null}
 
-        <AppButton
-          title="Continue with Google"
-          variant={Platform.OS === 'ios' ? 'ghost' : 'primary'}
-          disabled={loading !== null}
-          onPress={() => void onGoogle()}
-        />
+        {loading === 'google' ? (
+          <View style={{ alignItems: 'center', paddingVertical: spacing.sm, gap: spacing.xs }}>
+            <ActivityIndicator color={colors.limeSoft} />
+            <AppText variant="caption" color={colors.textSecondary}>
+              Completing Google sign in…
+            </AppText>
+          </View>
+        ) : (
+          <AppButton
+            title="Continue with Google"
+            variant={appleAvailable ? 'ghost' : 'primary'}
+            disabled={loading !== null || Boolean(googleBlockedReason)}
+            onPress={() => void onGoogle()}
+          />
+        )}
 
         <AppButton
           title="Continue with email"
@@ -107,6 +141,12 @@ export default function WelcomeScreen() {
           disabled={loading !== null}
           onPress={() => router.push('/(auth)/sign-in')}
         />
+
+        {googleBlockedReason ? (
+          <AppText color={colors.amber} selectable>
+            {googleBlockedReason}
+          </AppText>
+        ) : null}
 
         {error ? (
           <AppText color={colors.red} selectable>
@@ -117,8 +157,8 @@ export default function WelcomeScreen() {
 
       {__DEV__ ? (
         <AppText variant="caption" color={colors.textMuted} selectable>
-          OAuth redirect (add to Supabase → Auth → URL configuration):{' '}
-          {getOAuthRedirectUri()}
+          Add to Supabase → Auth → Redirect URLs:{'\n'}
+          {redirectUri}
         </AppText>
       ) : null}
 
