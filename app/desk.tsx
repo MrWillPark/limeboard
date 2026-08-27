@@ -9,11 +9,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 
-import { DeskSpeedometer } from '@/components/desk/desk-speedometer';
+import { DeskBurnPanel } from '@/components/desk/desk-burn-panel';
+import { DeskFinancePanel } from '@/components/desk/desk-finance-panel';
+import { DeskBurnReadout, DeskSpeedometer, deskHeroStackHeight } from '@/components/desk/desk-speedometer';
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { colors, spacing } from '@/constants/theme';
-import { computeBurn, formatShortDate, formatUsd } from '@/lib/analytics/burn';
+import { computeBurn } from '@/lib/analytics/burn';
 import { computeFleetPeriodSpend } from '@/lib/analytics/timeframe';
 import {
   useActivity,
@@ -30,6 +32,10 @@ import {
 } from '@/lib/widgets/sync-desk-monitor-widget';
 
 const POLL_INTERVAL_SEC = BURN_RATE_POLL_MS / 1000;
+
+const ACCENT = {
+  cyan: '#22D3EE',
+} as const;
 
 export default function DeskMonitorScreen() {
   useDeskLandscapeLock();
@@ -88,7 +94,18 @@ export default function DeskMonitorScreen() {
     };
   }, []);
 
-  const gaugeSize = Math.min(width * 0.52, height * 0.88, 520);
+  const readoutReserve = 40;
+  const keyReserve = 20;
+  const gaugeSize = Math.min(
+    width * 0.64,
+    (height - readoutReserve - keyReserve - spacing.lg * 2) * 0.98,
+    680
+  );
+  // Shrink gauge slightly if the hero stack (gauge + readout) would overflow vertically.
+  const heroSize =
+    deskHeroStackHeight(gaugeSize, true) > height - keyReserve - spacing.lg * 2
+      ? gaugeSize * 0.92
+      : gaugeSize;
 
   if (!ready) {
     return (
@@ -126,8 +143,12 @@ export default function DeskMonitorScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <LinearGradient
-        colors={['rgba(57,255,20,0.06)', 'transparent', 'rgba(57,255,20,0.03)']}
-        locations={[0, 0.5, 1]}
+        colors={[
+          'rgba(34,211,238,0.04)',
+          'rgba(57,255,20,0.05)',
+          'rgba(167,139,250,0.03)',
+        ]}
+        locations={[0, 0.45, 1]}
         style={{ position: 'absolute', inset: 0 }}
       />
 
@@ -137,12 +158,12 @@ export default function DeskMonitorScreen() {
           flexDirection: 'row',
           paddingHorizontal: spacing.xl,
           paddingVertical: spacing.lg,
-          gap: spacing.xl,
+          gap: spacing.xxl,
         }}
       >
-        <View style={{ flex: 1.25, justifyContent: 'center' }}>
+        <View style={{ flex: 1.35 }}>
           {!isConnected ? (
-            <View style={{ gap: spacing.md, maxWidth: 420 }}>
+            <View style={{ flex: 1, justifyContent: 'center', gap: spacing.md, maxWidth: 420 }}>
               <AppText variant="title">Connect to monitor burn</AppText>
               <AppText variant="caption" color={colors.textSecondary}>
                 Link your OpenRouter key to see live velocity on this screen.
@@ -150,82 +171,71 @@ export default function DeskMonitorScreen() {
               <AppButton title="Connect OpenRouter" onPress={() => router.push('/connect')} />
             </View>
           ) : (
-            <DeskSpeedometer
-              snapshot={burnRate.snapshot}
-              size={gaugeSize}
-              isLoading={burnRate.isLoading}
-              isFetching={burnRate.isFetching}
-              error={burnRate.error}
-              pollIntervalSec={POLL_INTERVAL_SEC}
-            />
+            <>
+              {maskedKey ? (
+                <AppText
+                  variant="caption"
+                  color={colors.textMuted}
+                  numberOfLines={1}
+                  ellipsizeMode="middle"
+                  style={{ fontSize: 11, opacity: 0.55, paddingTop: spacing.xs }}
+                >
+                  {meta?.isManagementKey ? 'Management key' : 'API key'} · {maskedKey}
+                </AppText>
+              ) : null}
+
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={{ width: heroSize, alignItems: 'center' }}>
+                  <DeskSpeedometer
+                    snapshot={burnRate.snapshot}
+                    size={heroSize}
+                    isLoading={burnRate.isLoading}
+                  />
+                  {!burnRate.isLoading ? (
+                    <DeskBurnReadout snapshot={burnRate.snapshot} size={heroSize} />
+                  ) : null}
+                </View>
+              </View>
+            </>
           )}
         </View>
 
         <View
           style={{
-            flex: 0.75,
+            flex: 0.65,
             justifyContent: 'space-between',
             paddingVertical: spacing.sm,
-            maxWidth: 320,
+            minWidth: 280,
+            maxWidth: 380,
+            borderLeftWidth: 1,
+            borderLeftColor: colors.border,
+            paddingLeft: spacing.xl,
+            gap: spacing.lg,
           }}
         >
-          <View style={{ gap: spacing.md }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <AppText variant="label" color={colors.limeSoft}>
-                Desk Monitor
-              </AppText>
-              <Pressable onPress={() => router.back()} hitSlop={12}>
-                <AppText color={colors.limeSoft}>Close</AppText>
-              </Pressable>
-            </View>
-            {isConnected ? (
-              <View style={{ gap: spacing.lg }}>
-                <SideMetric label="Balance" value={formatUsd(burn.accountBalance)} accent />
-                <SideMetric label="Spend · today" value={formatUsd(burn.periodSpend)} />
-                <SideMetric label="Pace / day" value={formatUsd(burn.avgDailySpend)} />
-                <SideMetric label="Runway" value={burn.runwayLabel} />
-                {burn.projectedZeroDate ? (
-                  <AppText variant="caption" color={colors.textMuted}>
-                    Est. empty {formatShortDate(burn.projectedZeroDate)}
-                  </AppText>
-                ) : null}
-              </View>
-            ) : null}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <AppText variant="label" color={ACCENT.cyan}>
+              Desk Monitor
+            </AppText>
+            <Pressable onPress={() => router.back()} hitSlop={12}>
+              <AppText color={colors.textSecondary}>Close</AppText>
+            </Pressable>
           </View>
 
-          {isConnected && maskedKey ? (
-            <AppText variant="caption" color={colors.textMuted}>
-              {meta?.isManagementKey ? 'Management key' : 'API key'} · {maskedKey}
-            </AppText>
+          {isConnected ? (
+            <View style={{ flex: 1, gap: spacing.lg }}>
+              <DeskFinancePanel burn={burn} />
+              <DeskBurnPanel
+                snapshot={burnRate.snapshot}
+                isLoading={burnRate.isLoading}
+                isFetching={burnRate.isFetching}
+                error={burnRate.error}
+                pollIntervalSec={POLL_INTERVAL_SEC}
+              />
+            </View>
           ) : null}
         </View>
       </View>
-    </View>
-  );
-}
-
-function SideMetric({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <View style={{ gap: 4 }}>
-      <AppText variant="label" style={{ fontSize: 11 }}>
-        {label}
-      </AppText>
-      <AppText
-        variant="mono"
-        selectable
-        color={accent ? colors.lime : colors.text}
-        style={{ fontSize: accent ? 28 : 20, letterSpacing: accent ? -0.5 : 0 }}
-      >
-        {value}
-      </AppText>
     </View>
   );
 }
