@@ -196,18 +196,18 @@ export default function CockpitScreen() {
     >
       {!isConnected ? (
         <>
+          <PlatformPulse />
           <Panel style={{ gap: spacing.sm }}>
             <AppText variant="label" color={colors.limeSoft}>
-              Welcome back
+              Your cockpit
             </AppText>
             <AppText variant="title">Hi {displayName}</AppText>
             <AppText>
-              Connect your OpenRouter key to track balance, burn rate, and runway.
-              Platform-wide rankings are available below without a key.
+              Connect an OpenRouter key to unlock personal balance, burn rate, and runway —
+              the same instrumentation you just saw for the whole ecosystem.
             </AppText>
           </Panel>
           <ConnectKeyCard />
-          <PlatformPulse />
         </>
       ) : (
         <>

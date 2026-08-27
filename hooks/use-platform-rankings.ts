@@ -21,18 +21,25 @@ async function fetchPlatformRankings(): Promise<PlatformRankingsSnapshot | null>
   const latestDate =
     (metaRow?.value as { latest_date?: string } | null)?.latest_date ?? null;
 
+  // Pull ~14 days for volume trend; still cheap (top-50 + other per day)
+  let startDate: string | null = null;
+  if (latestDate) {
+    const d = new Date(`${latestDate}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 13);
+    startDate = d.toISOString().slice(0, 10);
+  }
+
   let query = supabase
     .from('platform_rankings')
     .select(
       'ranking_date, model_permaslug, total_tokens, prompt_tokens, completion_tokens, is_other'
     )
+    .order('ranking_date', { ascending: true })
     .order('total_tokens', { ascending: false })
-    .limit(120);
+    .limit(800);
 
-  if (latestDate) {
-    query = query.eq('ranking_date', latestDate);
-  } else {
-    query = query.order('ranking_date', { ascending: false });
+  if (startDate && latestDate) {
+    query = query.gte('ranking_date', startDate).lte('ranking_date', latestDate);
   }
 
   const { data, error } = await query;
@@ -45,7 +52,7 @@ async function fetchPlatformRankings(): Promise<PlatformRankingsSnapshot | null>
 
 export function usePlatformRankings() {
   return useQuery({
-    queryKey: ['platform', 'rankings-daily'],
+    queryKey: ['platform', 'rankings-daily', 'v2'],
     queryFn: fetchPlatformRankings,
     enabled: isSupabaseConfigured(),
     staleTime: 60 * 60 * 1000,
