@@ -53,6 +53,10 @@ import {
   syncBalanceWidget,
   syncBalanceWidgetDisconnected,
 } from '@/lib/widgets/sync-balance-widget';
+import {
+  syncDeskMonitorWidget,
+  syncDeskMonitorWidgetDisconnected,
+} from '@/lib/widgets/sync-desk-monitor-widget';
 
 const FREE_TIMEFRAMES: TimeframeId[] = ['today', '7d'];
 
@@ -112,6 +116,7 @@ export default function CockpitScreen() {
     if (!ready) return;
     if (!isConnected) {
       syncBalanceWidgetDisconnected();
+      syncDeskMonitorWidgetDisconnected();
       return;
     }
     syncBalanceWidget(burn, effectiveTimeframe);
@@ -122,6 +127,34 @@ export default function CockpitScreen() {
     effectiveTimeframe,
     keyQuery.dataUpdatedAt,
     creditsQuery.dataUpdatedAt,
+  ]);
+
+  const liveTodaySpend = useMemo(
+    () =>
+      computeFleetPeriodSpend(
+        keyQuery.data,
+        keysQuery.data,
+        Boolean(meta?.isManagementKey),
+        'today'
+      ).spend,
+    [keyQuery.data, keysQuery.data, meta?.isManagementKey]
+  );
+
+  const burnRate = useBurnRate({
+    enabled: isConnected,
+    isManagementKey: meta?.isManagementKey,
+    liveSpend: liveTodaySpend,
+  });
+
+  useEffect(() => {
+    if (!ready || !isConnected) return;
+    syncDeskMonitorWidget(burnRate.snapshot);
+  }, [
+    ready,
+    isConnected,
+    burnRate.snapshot,
+    keyQuery.dataUpdatedAt,
+    activityQuery.dataUpdatedAt,
   ]);
 
   const spendSeries = useMemo(() => {
@@ -146,23 +179,6 @@ export default function CockpitScreen() {
     () => computeFleetSnapshot(keysQuery.data),
     [keysQuery.data]
   );
-
-  const liveTodaySpend = useMemo(
-    () =>
-      computeFleetPeriodSpend(
-        keyQuery.data,
-        keysQuery.data,
-        Boolean(meta?.isManagementKey),
-        'today'
-      ).spend,
-    [keyQuery.data, keysQuery.data, meta?.isManagementKey]
-  );
-
-  const burnRate = useBurnRate({
-    enabled: isConnected,
-    isManagementKey: meta?.isManagementKey,
-    liveSpend: liveTodaySpend,
-  });
 
   const refreshing =
     keyQuery.isFetching ||

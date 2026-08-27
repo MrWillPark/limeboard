@@ -59,6 +59,18 @@
                 "systemMedium",
                 "systemLarge"
               ]
+            },
+            {
+              "name": "DeskMonitorWidget",
+              "displayName": "Desk Monitor",
+              "description": "Live token burn or spend velocity for your desk setup.",
+              "contentMarginsDisabled": true,
+              "supportedFamilies": [
+                "systemSmall",
+                "systemMedium",
+                "systemLarge",
+                "systemExtraLarge"
+              ]
             }
           ]
         }

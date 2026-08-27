@@ -133,6 +133,14 @@ export default function SettingsScreen() {
       </Panel>
 
       <Panel style={{ gap: spacing.md }}>
+        <AppText variant="title">Desk Monitor</AppText>
+        <AppText variant="caption">
+          Full-screen live burn view for a second monitor, plus an iOS/iPad widget for your desk setup.
+        </AppText>
+        <AppButton title="Open Desk Monitor" variant="ghost" onPress={() => router.push('/desk')} />
+      </Panel>
+
+      <Panel style={{ gap: spacing.md }}>
         <AppText variant="title">OpenRouter key</AppText>
         {isConnected ? (
           <>

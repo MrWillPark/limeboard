@@ -46,14 +46,24 @@ Then open in Expo Go (iOS/Android) or press `i` / `a` / `w`.
 - Stretch: startup infrastructure burn tracker  
 - Stretch: watchOS companion (separate native target; see notes below)
 
-## iOS Home Screen widget
+## iOS Home Screen widgets
 
-LimeBoard ships an iOS **Balance** widget via [`expo-widgets`](https://docs.expo.dev/versions/v57.0.0/sdk/widgets/) (SDK 57). It shows account balance, period spend, avg/day, and runway.
+LimeBoard ships two iOS widgets via [`expo-widgets`](https://docs.expo.dev/versions/v57.0.0/sdk/widgets/) (SDK 57):
+
+| Widget | What it shows |
+| --- | --- |
+| **Balance** | Account balance, period spend, avg/day, runway |
+| **Desk Monitor** | Live token burn or spend velocity, peak/avg, 30m history strip |
 
 - Requires a **development or production native build** (not Expo Go).
 - Config lives in `app.json` under the `expo-widgets` plugin (App Group `group.app.limeboard.mobile`, extension `app.limeboard.mobile.widgets`).
-- Widget UI: `widgets/BalanceWidget.tsx`. Cockpit pushes snapshots via `lib/widgets/sync-balance-widget.ts`.
+- Widget UI: `widgets/BalanceWidget.tsx`, `widgets/DeskMonitorWidget.tsx`. Cockpit pushes snapshots via `lib/widgets/sync-*.ts`.
+- **Desk Monitor** supports `systemExtraLarge` for iPad desk setups and Mac desktop widgets.
 - After changing the plugin config, rebuild the iOS binary (`eas build` / prebuild).
+
+### Desk Monitor (in-app)
+
+Settings → **Open Desk Monitor** launches a fullscreen view optimized for a second monitor (web or tablet landscape). It reuses the Cockpit burn gauge and refreshes while open.
 
 ### watchOS — complexity note
 

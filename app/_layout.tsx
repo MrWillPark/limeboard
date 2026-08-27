@@ -97,6 +97,14 @@ export default function RootLayout() {
                 title: 'Terms of Use',
               }}
             />
+            <Stack.Screen
+              name="desk"
+              options={{
+                presentation: 'fullScreenModal',
+                headerShown: false,
+                title: 'Desk Monitor',
+              }}
+            />
           </Stack>
         </AuthGate>
       </ThemeProvider>
