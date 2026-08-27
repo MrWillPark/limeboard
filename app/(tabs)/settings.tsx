@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, Linking, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import Purchases from 'react-native-purchases';
 
@@ -7,6 +7,8 @@ import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
 import { colors, spacing } from '@/constants/theme';
+import { deleteLimeBoardAccount } from '@/lib/auth/delete-account';
+import { LEGAL } from '@/lib/config/legal';
 import { isRevenueCatConfigured } from '@/lib/config/env';
 import { useOpenRouter } from '@/providers/openrouter-provider';
 import { useSession } from '@/providers/session-provider';
@@ -16,6 +18,7 @@ export default function SettingsScreen() {
   const { user, signOut } = useSession();
   const { isConnected, maskedKey, meta, disconnect } = useOpenRouter();
   const { isPro, showManageSubscriptions } = useSubscription();
+  const [deleting, setDeleting] = useState(false);
 
   const onDisconnect = () => {
     Alert.alert('Remove API key?', 'The key will be deleted from the device keychain.', [
@@ -54,6 +57,37 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const onDeleteAccount = () => {
+    Alert.alert(
+      'Delete LimeBoard account?',
+      'This permanently deletes your LimeBoard login. OpenRouter keys on this device are removed. App Store / Play subscriptions must be cancelled separately in your store settings.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              setDeleting(true);
+              try {
+                await deleteLimeBoardAccount();
+                await disconnect().catch(() => {});
+                Alert.alert('Account deleted', 'Your LimeBoard account has been removed.');
+              } catch (e) {
+                Alert.alert(
+                  'Could not delete account',
+                  e instanceof Error ? e.message : 'Try again later.'
+                );
+              } finally {
+                setDeleting(false);
+              }
+            })();
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
@@ -69,12 +103,20 @@ export default function SettingsScreen() {
           </AppText>
         </View>
         <AppButton title="Sign out" variant="ghost" onPress={onSignOut} />
+        <AppButton
+          title={deleting ? 'Deleting…' : 'Delete account'}
+          variant="danger"
+          disabled={deleting}
+          onPress={onDeleteAccount}
+        />
       </Panel>
 
       <Panel style={{ gap: spacing.md }}>
         <AppText variant="title">Subscription</AppText>
         <AppText variant="caption">
-          {isPro ? 'LimeBoard Pro is active on this account.' : 'Free tier — basic stats and 30-day Explore.'}
+          {isPro
+            ? 'LimeBoard Pro is active on this account.'
+            : 'Free tier — basic stats and 30-day Explore.'}
         </AppText>
         {isPro ? (
           <AppButton
@@ -110,6 +152,24 @@ export default function SettingsScreen() {
             <AppButton title="Connect OpenRouter" onPress={() => router.push('/connect')} />
           </>
         )}
+      </Panel>
+
+      <Panel style={{ gap: spacing.sm }}>
+        <AppText variant="title">Legal</AppText>
+        <AppButton title="Privacy Policy" variant="ghost" onPress={() => router.push('/privacy')} />
+        <AppButton title="Terms of Use" variant="ghost" onPress={() => router.push('/terms')} />
+        <AppButton
+          title="Apple Standard EULA"
+          variant="ghost"
+          onPress={() => void Linking.openURL(LEGAL.eulaUrl)}
+        />
+        <AppText
+          variant="caption"
+          color={colors.limeSoft}
+          onPress={() => void Linking.openURL(`mailto:${LEGAL.supportEmail}`)}
+        >
+          {LEGAL.supportEmail}
+        </AppText>
       </Panel>
 
       <Panel style={{ gap: spacing.sm }}>

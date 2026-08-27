@@ -4,3 +4,7 @@
 
 [functions.sync-rankings]
 verify_jwt = false
+
+# Account deletion — requires user JWT (default verify_jwt = true)
+[functions.delete-account]
+verify_jwt = true

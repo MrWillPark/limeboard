@@ -83,6 +83,20 @@ export default function RootLayout() {
                 title: 'LimeBoard Pro',
               }}
             />
+            <Stack.Screen
+              name="privacy"
+              options={{
+                presentation: 'modal',
+                title: 'Privacy Policy',
+              }}
+            />
+            <Stack.Screen
+              name="terms"
+              options={{
+                presentation: 'modal',
+                title: 'Terms of Use',
+              }}
+            />
           </Stack>
         </AuthGate>
       </ThemeProvider>

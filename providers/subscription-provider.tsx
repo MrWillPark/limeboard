@@ -16,9 +16,10 @@ import Purchases, {
 } from 'react-native-purchases';
 
 import { env, isRevenueCatConfigured } from '@/lib/config/env';
+import { PRO_ENTITLEMENT } from '@/lib/config/products';
 import { useSession } from '@/providers/session-provider';
 
-const PRO_ENTITLEMENT = 'pro';
+const ENTITLEMENT = PRO_ENTITLEMENT;
 
 type SubscriptionState = {
   ready: boolean;
@@ -42,7 +43,7 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
 
   const applyCustomerInfo = useCallback((info: CustomerInfo | null) => {
     setCustomerInfo(info);
-    const active = info?.entitlements.active[PRO_ENTITLEMENT]?.isActive === true;
+    const active = info?.entitlements.active[ENTITLEMENT]?.isActive === true;
     setIsPro(active || env.devPro);
   }, []);
 

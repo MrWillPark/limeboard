@@ -1,0 +1,98 @@
+# Store products, RevenueCat, legal, TestFlight
+
+## Product IDs (must match everywhere)
+
+| ID | Type |
+|----|------|
+| `limeboard_pro_monthly` | Auto-renewable subscription |
+| `limeboard_pro_annual` | Auto-renewable subscription |
+| Entitlement | `pro` |
+| Offering | `default` (monthly + annual packages) |
+| Bundle ID | `app.limeboard.mobile` |
+
+---
+
+## 1. App Store Connect
+
+1. [Apps](https://appstoreconnect.apple.com/apps) → **+** → New App  
+   - Bundle ID: `app.limeboard.mobile`  
+   - SKU: `limeboard`  
+2. **Subscriptions** → create subscription group **LimeBoard Pro**  
+3. Add products:
+   - Reference name / Product ID: `limeboard_pro_monthly` (1 month)
+   - Reference name / Product ID: `limeboard_pro_annual` (1 year)
+4. Set pricing, localization, review screenshot for each
+5. App Privacy → Privacy Policy URL: `https://limeboard.app/privacy`  
+   (host the in-app copy on that domain, or temporarily use a public GitHub Pages URL)
+6. App Information → License Agreement: Apple Standard EULA is fine; also link Terms in app
+7. Note the numeric **Apple ID** (App Store Connect app id) → put in `eas.json` → `submit.production.ios.ascAppId`
+
+Paid Apps Agreement + banking/tax must be Active under Business.
+
+---
+
+## 2. RevenueCat
+
+1. [app.revenuecat.com](https://app.revenuecat.com) → New project **LimeBoard**
+2. Add iOS app → bundle `app.limeboard.mobile`
+3. Upload App Store Connect API key (In-App Purchase key) for receipt validation
+4. Import / create products with IDs above
+5. Entitlement **`pro`** → attach both products
+6. Offering **`default`** → add Monthly + Annual packages
+7. Copy **Public app-specific API key** (starts with `appl_`) into `.env.local`:
+
+```
+EXPO_PUBLIC_REVENUECAT_IOS_KEY=appl_...
+EXPO_PUBLIC_DEV_PRO=false
+```
+
+Android later: `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY=goog_...`
+
+---
+
+## 3. Dev Pro (UI only, no store)
+
+Until RC keys work in a native build:
+
+```
+EXPO_PUBLIC_DEV_PRO=true
+```
+
+Restart Metro. Paywall / gates behave as Pro without purchases.
+
+---
+
+## 4. TestFlight
+
+Requires a **native build** (not Expo Go):
+
+```bash
+# Development client (Apple Sign In + IAP sandbox)
+eas build --profile development --platform ios
+
+# Or production → TestFlight
+eas build --profile production --platform ios
+eas submit --platform ios --latest
+# or: npx testflight
+```
+
+Set once:
+
+```bash
+export EXPO_APPLE_ID=you@email.com
+export EXPO_APPLE_TEAM_ID=UZLYMT5D28
+```
+
+Internal TestFlight testers get the build immediately after processing.
+
+---
+
+## 5. Host Privacy / Terms on HTTPS
+
+App Store Connect needs public URLs. In-app screens live at `/privacy` and `/terms`.
+
+Options:
+- Point `limeboard.app/privacy` and `/terms` at static HTML (see `public/legal/`)
+- Or deploy Expo web: `npx expo export -p web` + EAS Hosting
+
+Until the domain is live, use any HTTPS host that serves the same text (GitHub Pages is fine for review).
