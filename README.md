@@ -63,7 +63,10 @@ LimeBoard ships two iOS widgets via [`expo-widgets`](https://docs.expo.dev/versi
 
 ### Desk Monitor (in-app)
 
-Settings → **Open Desk Monitor** launches a fullscreen view optimized for a second monitor (web or tablet landscape). It reuses the Cockpit burn gauge and refreshes while open.
+Settings → **Open Desk Monitor** launches a fullscreen landscape view for a second monitor (web or tablet). It shows a large speedometer-style burn gauge plus balance, spend, and runway on the side.
+
+- **Orientation:** locked to landscape on native; rotate your device or widen the browser window on web.
+- **Refresh rate:** burn data polls every **20 seconds** while the screen is open (`BURN_RATE_POLL_MS` in `hooks/use-burn-rate.ts`). Management keys use OpenRouter Analytics minute buckets (often 1–3 min behind); session keys poll `/key` usage deltas.
 
 ### watchOS — complexity note
 

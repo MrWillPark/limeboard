@@ -9,9 +9,9 @@ import {
 } from '@/lib/analytics/burn-rate';
 import { analyticsTimeRange } from '@/lib/analytics/analytics-query';
 import { getCurrentKey, queryAnalytics } from '@/lib/openrouter/client';
-import { useAuth } from '@/providers/auth-provider';
+import { useOpenRouter } from '@/providers/openrouter-provider';
 
-const POLL_MS = 20_000;
+export const BURN_RATE_POLL_MS = 20_000;
 
 const EMPTY: BurnRateSnapshot = {
   mode: 'tokens',
@@ -31,7 +31,7 @@ type Args = {
 };
 
 export function useBurnRate({ enabled = true, isManagementKey, liveSpend }: Args) {
-  const { apiKey } = useAuth();
+  const { apiKey } = useOpenRouter();
 
   const analyticsQuery = useQuery({
     queryKey: ['openrouter', 'burn-rate', 'analytics', apiKey],
@@ -50,8 +50,8 @@ export function useBurnRate({ enabled = true, isManagementKey, liveSpend }: Args
       };
     },
     enabled: Boolean(apiKey) && Boolean(isManagementKey) && enabled,
-    refetchInterval: POLL_MS,
-    staleTime: POLL_MS / 2,
+    refetchInterval: BURN_RATE_POLL_MS,
+    staleTime: BURN_RATE_POLL_MS / 2,
     retry: false,
   });
 
@@ -59,8 +59,8 @@ export function useBurnRate({ enabled = true, isManagementKey, liveSpend }: Args
     queryKey: ['openrouter', 'burn-rate', 'key-poll', apiKey],
     queryFn: () => getCurrentKey(apiKey!),
     enabled: Boolean(apiKey) && !isManagementKey && enabled,
-    refetchInterval: POLL_MS,
-    staleTime: POLL_MS / 2,
+    refetchInterval: BURN_RATE_POLL_MS,
+    staleTime: BURN_RATE_POLL_MS / 2,
     retry: false,
   });
 

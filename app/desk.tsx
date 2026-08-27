@@ -3,37 +3,39 @@ import {
   ActivityIndicator,
   Platform,
   Pressable,
-  ScrollView,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 
-import { BalanceHero } from '@/components/cockpit/balance-hero';
-import { BurnGauge } from '@/components/cockpit/burn-gauge';
+import { DeskSpeedometer } from '@/components/desk/desk-speedometer';
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
-import { Panel } from '@/components/ui/panel';
 import { colors, spacing } from '@/constants/theme';
-import { computeBurn, dailySpendSeries } from '@/lib/analytics/burn';
+import { computeBurn, formatShortDate, formatUsd } from '@/lib/analytics/burn';
 import { computeFleetPeriodSpend } from '@/lib/analytics/timeframe';
-import { buildTodayTrendSeries } from '@/lib/analytics/today-trail';
 import {
   useActivity,
   useCredits,
   useKeyInfo,
   useManagedKeys,
 } from '@/hooks/use-openrouter';
-import { useBurnRate } from '@/hooks/use-burn-rate';
+import { BURN_RATE_POLL_MS, useBurnRate } from '@/hooks/use-burn-rate';
+import { useDeskLandscapeLock } from '@/hooks/use-desk-landscape-lock';
 import { useOpenRouter } from '@/providers/openrouter-provider';
 import {
   syncDeskMonitorWidget,
   syncDeskMonitorWidgetDisconnected,
 } from '@/lib/widgets/sync-desk-monitor-widget';
 
+const POLL_INTERVAL_SEC = BURN_RATE_POLL_MS / 1000;
+
 export default function DeskMonitorScreen() {
-  const { width } = useWindowDimensions();
-  const isWide = width >= 720;
+  useDeskLandscapeLock();
+
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width >= height;
   const { ready, isConnected, meta, maskedKey } = useOpenRouter();
 
   const keyQuery = useKeyInfo();
@@ -68,17 +70,6 @@ export default function DeskMonitorScreen() {
     liveSpend: liveTodaySpend,
   });
 
-  const spendSeries = useMemo(() => {
-    if (burn.periodSpend > 0) {
-      return buildTodayTrendSeries(burn.periodSpend);
-    }
-    return dailySpendSeries(activity.filter((row) => {
-      const d = row.date;
-      const today = new Date().toISOString().slice(0, 10);
-      return d === today;
-    }));
-  }, [burn.periodSpend, activity, keyQuery.dataUpdatedAt]);
-
   useEffect(() => {
     if (!ready) return;
     if (!isConnected) {
@@ -97,6 +88,8 @@ export default function DeskMonitorScreen() {
     };
   }, []);
 
+  const gaugeSize = Math.min(width * 0.52, height * 0.88, 520);
+
   if (!ready) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center' }}>
@@ -105,74 +98,134 @@ export default function DeskMonitorScreen() {
     );
   }
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{
-        padding: spacing.xl,
-        gap: spacing.xl,
-        paddingBottom: spacing.xxl,
-        maxWidth: 1100,
-        width: '100%',
-        alignSelf: 'center',
-      }}
-    >
+  if (!isLandscape) {
+    return (
       <View
         style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
+          flex: 1,
+          backgroundColor: colors.bg,
+          justifyContent: 'center',
           alignItems: 'center',
-          gap: spacing.md,
+          padding: spacing.xl,
+          gap: spacing.lg,
         }}
       >
-        <View style={{ gap: 4, flex: 1 }}>
-          <AppText variant="label" color={colors.limeSoft}>
-            Desk Monitor
-          </AppText>
-          <AppText variant="title" style={{ fontSize: 28 }}>
-            Live burn at a glance
-          </AppText>
-          <AppText variant="caption" color={colors.textSecondary}>
-            Pin this view on a second monitor or add the Desk Monitor widget to iPad / Mac desktop.
-          </AppText>
-        </View>
+        <AppText variant="title" style={{ textAlign: 'center' }}>
+          Rotate to landscape
+        </AppText>
+        <AppText variant="caption" color={colors.textSecondary} style={{ textAlign: 'center' }}>
+          Desk Monitor is locked to landscape for your second screen.
+        </AppText>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <AppText color={colors.limeSoft}>Close</AppText>
         </Pressable>
       </View>
+    );
+  }
 
-      {!isConnected ? (
-        <Panel style={{ gap: spacing.md }}>
-          <AppText>Connect an OpenRouter key to start monitoring burn from your desk.</AppText>
-          <AppButton title="Connect OpenRouter" onPress={() => router.push('/connect')} />
-        </Panel>
-      ) : (
-        <View
-          style={{
-            flexDirection: isWide ? 'row' : 'column',
-            gap: spacing.lg,
-            alignItems: 'stretch',
-          }}
-        >
-          <View style={{ flex: isWide ? 1.1 : undefined, gap: spacing.lg }}>
-            <BalanceHero
-              burn={burn}
-              series={spendSeries.map((p) => p.value)}
-              timeframe="today"
-              keyLabel={maskedKey}
-              isManagementKey={meta?.isManagementKey}
-            />
-          </View>
-          <View style={{ flex: isWide ? 0.9 : undefined }}>
-            <BurnGauge
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <LinearGradient
+        colors={['rgba(57,255,20,0.06)', 'transparent', 'rgba(57,255,20,0.03)']}
+        locations={[0, 0.5, 1]}
+        style={{ position: 'absolute', inset: 0 }}
+      />
+
+      <View
+        style={{
+          flex: 1,
+          flexDirection: 'row',
+          paddingHorizontal: spacing.xl,
+          paddingVertical: spacing.lg,
+          gap: spacing.xl,
+        }}
+      >
+        <View style={{ flex: 1.25, justifyContent: 'center' }}>
+          {!isConnected ? (
+            <View style={{ gap: spacing.md, maxWidth: 420 }}>
+              <AppText variant="title">Connect to monitor burn</AppText>
+              <AppText variant="caption" color={colors.textSecondary}>
+                Link your OpenRouter key to see live velocity on this screen.
+              </AppText>
+              <AppButton title="Connect OpenRouter" onPress={() => router.push('/connect')} />
+            </View>
+          ) : (
+            <DeskSpeedometer
               snapshot={burnRate.snapshot}
+              size={gaugeSize}
               isLoading={burnRate.isLoading}
               isFetching={burnRate.isFetching}
               error={burnRate.error}
+              pollIntervalSec={POLL_INTERVAL_SEC}
             />
-          </View>
+          )}
         </View>
-      )}
-    </ScrollView>
+
+        <View
+          style={{
+            flex: 0.75,
+            justifyContent: 'space-between',
+            paddingVertical: spacing.sm,
+            maxWidth: 320,
+          }}
+        >
+          <View style={{ gap: spacing.md }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <AppText variant="label" color={colors.limeSoft}>
+                Desk Monitor
+              </AppText>
+              <Pressable onPress={() => router.back()} hitSlop={12}>
+                <AppText color={colors.limeSoft}>Close</AppText>
+              </Pressable>
+            </View>
+            {isConnected ? (
+              <View style={{ gap: spacing.lg }}>
+                <SideMetric label="Balance" value={formatUsd(burn.accountBalance)} accent />
+                <SideMetric label="Spend · today" value={formatUsd(burn.periodSpend)} />
+                <SideMetric label="Pace / day" value={formatUsd(burn.avgDailySpend)} />
+                <SideMetric label="Runway" value={burn.runwayLabel} />
+                {burn.projectedZeroDate ? (
+                  <AppText variant="caption" color={colors.textMuted}>
+                    Est. empty {formatShortDate(burn.projectedZeroDate)}
+                  </AppText>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+
+          {isConnected && maskedKey ? (
+            <AppText variant="caption" color={colors.textMuted}>
+              {meta?.isManagementKey ? 'Management key' : 'API key'} · {maskedKey}
+            </AppText>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function SideMetric({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
+  return (
+    <View style={{ gap: 4 }}>
+      <AppText variant="label" style={{ fontSize: 11 }}>
+        {label}
+      </AppText>
+      <AppText
+        variant="mono"
+        selectable
+        color={accent ? colors.lime : colors.text}
+        style={{ fontSize: accent ? 28 : 20, letterSpacing: accent ? -0.5 : 0 }}
+      >
+        {value}
+      </AppText>
+    </View>
   );
 }
