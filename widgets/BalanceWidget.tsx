@@ -18,46 +18,16 @@ export type BalanceWidgetProps = {
   avgDailyLabel: string;
 };
 
-const LIME = '#39FF14';
-const LIME_SOFT = '#A3E635';
-const TEXT = '#F2F7F4';
-const MUTED = '#9AADA3';
-const BG = '#0B0E0D';
-const PANEL = '#141917';
-
-function Metric({
-  label,
-  value,
-  compact,
-}: {
-  label: string;
-  value: string;
-  compact?: boolean;
-}) {
-  return (
-    <VStack alignment="leading" spacing={2}>
-      <Text
-        modifiers={[
-          font({ weight: 'medium', size: compact ? 9 : 10 }),
-          foregroundStyle(MUTED),
-        ]}
-      >
-        {label}
-      </Text>
-      <Text
-        modifiers={[
-          font({ weight: 'semibold', size: compact ? 13 : 15, design: 'monospaced' }),
-          foregroundStyle(TEXT),
-        ]}
-      >
-        {value}
-      </Text>
-    </VStack>
-  );
-}
-
 const BalanceWidget = (props: BalanceWidgetProps, environment: WidgetEnvironment) => {
   'widget';
+
+  // expo-widgets serializes only this function body for the extension JS runtime.
+  const LIME = '#39FF14';
+  const LIME_SOFT = '#A3E635';
+  const TEXT = '#F2F7F4';
+  const MUTED = '#9AADA3';
+  const BG = '#0B0E0D';
+  const PANEL = '#141917';
 
   const isFullColor =
     environment.widgetRenderingMode == null ||
@@ -183,9 +153,51 @@ const BalanceWidget = (props: BalanceWidgetProps, environment: WidgetEnvironment
           </VStack>
         ) : (
           <HStack spacing={12} modifiers={[frame({ maxWidth: Infinity })]}>
-            <Metric label={props.spendCaption} value={props.spendLabel} />
-            <Metric label="Avg / day" value={props.avgDailyLabel} />
-            <Metric label="Runway" value={props.runwayLabel} />
+            <VStack alignment="leading" spacing={2}>
+              <Text
+                modifiers={[font({ weight: 'medium', size: 10 }), foregroundStyle(MUTED)]}
+              >
+                {props.spendCaption}
+              </Text>
+              <Text
+                modifiers={[
+                  font({ weight: 'semibold', size: 15, design: 'monospaced' }),
+                  foregroundStyle(TEXT),
+                ]}
+              >
+                {props.spendLabel}
+              </Text>
+            </VStack>
+            <VStack alignment="leading" spacing={2}>
+              <Text
+                modifiers={[font({ weight: 'medium', size: 10 }), foregroundStyle(MUTED)]}
+              >
+                Avg / day
+              </Text>
+              <Text
+                modifiers={[
+                  font({ weight: 'semibold', size: 15, design: 'monospaced' }),
+                  foregroundStyle(TEXT),
+                ]}
+              >
+                {props.avgDailyLabel}
+              </Text>
+            </VStack>
+            <VStack alignment="leading" spacing={2}>
+              <Text
+                modifiers={[font({ weight: 'medium', size: 10 }), foregroundStyle(MUTED)]}
+              >
+                Runway
+              </Text>
+              <Text
+                modifiers={[
+                  font({ weight: 'semibold', size: 15, design: 'monospaced' }),
+                  foregroundStyle(TEXT),
+                ]}
+              >
+                {props.runwayLabel}
+              </Text>
+            </VStack>
           </HStack>
         )}
 

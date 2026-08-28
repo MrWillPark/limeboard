@@ -19,7 +19,12 @@ import {
 } from '@/lib/auth/secure-key';
 import { validateApiKey } from '@/lib/openrouter/client';
 import { isOpenRouterAuthError, isOpenRouterNetworkError } from '@/lib/openrouter/errors';
-import { syncBalanceWidgetDisconnected } from '@/lib/widgets/sync-balance-widget';
+import { syncBalanceWidgetDisconnected, syncBalanceWidgetLoading } from '@/lib/widgets/sync-balance-widget';
+import {
+  syncDeskMonitorWidgetDisconnected,
+  syncDeskMonitorWidgetLoading,
+} from '@/lib/widgets/sync-desk-monitor-widget';
+import { bootstrapWidgetLayouts } from '@/lib/widgets/widget-runtime';
 import { useScreenshotPreviewOptional } from '@/providers/screenshot-preview-provider';
 import { useSession } from '@/providers/session-provider';
 
@@ -97,6 +102,27 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
   }, [userId, queryClient]);
 
   useEffect(() => {
+    if (!sessionReady) return;
+
+    bootstrapWidgetLayouts();
+
+    if (!userId) {
+      syncBalanceWidgetDisconnected();
+      syncDeskMonitorWidgetDisconnected();
+      return;
+    }
+
+    if (!apiKey) {
+      syncBalanceWidgetDisconnected();
+      syncDeskMonitorWidgetDisconnected();
+      return;
+    }
+
+    syncBalanceWidgetLoading();
+    syncDeskMonitorWidgetLoading();
+  }, [sessionReady, userId, apiKey]);
+
+  useEffect(() => {
     let cancelled = false;
 
     (async () => {
@@ -168,6 +194,7 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
     setKeyRejectedMessage(null);
     queryClient.removeQueries({ queryKey: ['openrouter'] });
     syncBalanceWidgetDisconnected();
+    syncDeskMonitorWidgetDisconnected();
   }, [userId, queryClient]);
 
   const refreshMeta = useCallback(async () => {

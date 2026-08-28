@@ -22,72 +22,16 @@ export type DeskMonitorWidgetProps = {
   history: number[];
 };
 
-const LIME = '#39FF14';
-const LIME_SOFT = '#A3E635';
-const TEXT = '#F2F7F4';
-const MUTED = '#9AADA3';
-const BG = '#0B0E0D';
-const PANEL = '#141917';
-const CHART = '#6B8F78';
-
-function Metric({
-  label,
-  value,
-  compact,
-}: {
-  label: string;
-  value: string;
-  compact?: boolean;
-}) {
-  return (
-    <VStack alignment="leading" spacing={2}>
-      <Text
-        modifiers={[
-          font({ weight: 'medium', size: compact ? 9 : 10 }),
-          foregroundStyle(MUTED),
-        ]}
-      >
-        {label}
-      </Text>
-      <Text
-        modifiers={[
-          font({ weight: 'semibold', size: compact ? 13 : 15, design: 'monospaced' }),
-          foregroundStyle(TEXT),
-        ]}
-      >
-        {value}
-      </Text>
-    </VStack>
-  );
-}
-
-function HistoryStrip({ values, height }: { values: number[]; height: number }) {
-  if (values.length < 2) return null;
-
-  const max = Math.max(...values, 0.01);
-  const barCount = Math.min(values.length, 24);
-
-  return (
-    <HStack spacing={2} alignment="bottom">
-      {values.slice(-barCount).map((v, i) => {
-        const ratio = v / max;
-        const barH = Math.max(3, Math.round(ratio * height));
-        return (
-          <Rectangle
-            key={i}
-            modifiers={[
-              frame({ width: 4, height: barH }),
-              foregroundStyle(ratio > 0.7 ? LIME_SOFT : CHART),
-            ]}
-          />
-        );
-      })}
-    </HStack>
-  );
-}
-
 const DeskMonitorWidget = (props: DeskMonitorWidgetProps, environment: WidgetEnvironment) => {
   'widget';
+
+  const LIME = '#39FF14';
+  const LIME_SOFT = '#A3E635';
+  const TEXT = '#F2F7F4';
+  const MUTED = '#9AADA3';
+  const BG = '#0B0E0D';
+  const PANEL = '#141917';
+  const CHART = '#6B8F78';
 
   const isFullColor =
     environment.widgetRenderingMode == null ||
@@ -100,6 +44,14 @@ const DeskMonitorWidget = (props: DeskMonitorWidgetProps, environment: WidgetEnv
   const accent = isFullColor ? LIME : TEXT;
   const soft = isFullColor ? LIME_SOFT : MUTED;
   const title = props.mode === 'tokens' ? 'Token burn' : 'Spend velocity';
+
+  const historyValues = props.history ?? [];
+  const historyMax =
+    historyValues.length > 0 ? Math.max(...historyValues, 0.01) : 0.01;
+  const historyBars = historyValues.slice(-Math.min(historyValues.length, 24));
+  const historyHeight = isLarge ? 36 : 24;
+  const metricLabelSize = isLarge ? 10 : 9;
+  const metricValueSize = isLarge ? 15 : 13;
 
   if (!props.connected) {
     return (
@@ -203,17 +155,64 @@ const DeskMonitorWidget = (props: DeskMonitorWidgetProps, environment: WidgetEnv
           </Text>
         ) : (
           <HStack spacing={12} modifiers={[frame({ maxWidth: Infinity })]}>
-            <Metric label="Peak" value={props.peakLabel} compact={!isLarge} />
-            <Metric label="Avg · 30m" value={props.avgLabel} compact={!isLarge} />
+            <VStack alignment="leading" spacing={2}>
+              <Text
+                modifiers={[
+                  font({ weight: 'medium', size: metricLabelSize }),
+                  foregroundStyle(MUTED),
+                ]}
+              >
+                Peak
+              </Text>
+              <Text
+                modifiers={[
+                  font({ weight: 'semibold', size: metricValueSize, design: 'monospaced' }),
+                  foregroundStyle(TEXT),
+                ]}
+              >
+                {props.peakLabel}
+              </Text>
+            </VStack>
+            <VStack alignment="leading" spacing={2}>
+              <Text
+                modifiers={[
+                  font({ weight: 'medium', size: metricLabelSize }),
+                  foregroundStyle(MUTED),
+                ]}
+              >
+                Avg · 30m
+              </Text>
+              <Text
+                modifiers={[
+                  font({ weight: 'semibold', size: metricValueSize, design: 'monospaced' }),
+                  foregroundStyle(TEXT),
+                ]}
+              >
+                {props.avgLabel}
+              </Text>
+            </VStack>
           </HStack>
         )}
 
-        {!isSmall && props.history.length >= 2 ? (
+        {!isSmall && historyBars.length >= 2 ? (
           <VStack alignment="leading" spacing={4}>
             <Text modifiers={[font({ size: 9 }), foregroundStyle(MUTED)]}>
               Last 30m
             </Text>
-            <HistoryStrip values={props.history} height={isLarge ? 36 : 24} />
+            <HStack spacing={2} alignment="bottom">
+              {historyBars.map((v) => {
+                const ratio = v / historyMax;
+                const barH = Math.max(3, Math.round(ratio * historyHeight));
+                return (
+                  <Rectangle
+                    modifiers={[
+                      frame({ width: 4, height: barH }),
+                      foregroundStyle(ratio > 0.7 ? LIME_SOFT : CHART),
+                    ]}
+                  />
+                );
+              })}
+            </HStack>
           </VStack>
         ) : null}
 

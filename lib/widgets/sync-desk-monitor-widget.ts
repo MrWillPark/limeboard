@@ -4,7 +4,7 @@ import {
   formatRateUnit,
   type BurnRateSnapshot,
 } from '@/lib/analytics/burn-rate';
-import { isWidgetSyncAvailable } from '@/lib/widgets/widget-sync-available';
+import { pushDeskMonitorWidgetSnapshot } from '@/lib/widgets/widget-runtime';
 
 import type { DeskMonitorWidgetProps } from '@/widgets/DeskMonitorWidget';
 
@@ -34,18 +34,28 @@ function normalizeHistory(values: number[]): number[] {
   return values.map((v) => v / max);
 }
 
+const LOADING: DeskMonitorWidgetProps = {
+  connected: true,
+  mode: 'tokens',
+  rateLabel: '…',
+  rateUnit: 'tok/s',
+  peakLabel: '—',
+  avgLabel: '—',
+  updatedLabel: 'Loading',
+  sourceLabel: 'OpenRouter',
+  history: [],
+};
+
 function pushDeskMonitorSnapshot(props: DeskMonitorWidgetProps) {
-  if (!isWidgetSyncAvailable()) return;
-  try {
-    const DeskMonitorWidget = require('@/widgets/DeskMonitorWidget').default;
-    DeskMonitorWidget.updateSnapshot(props);
-  } catch {
-    // Native widget extension not present in this build.
-  }
+  pushDeskMonitorWidgetSnapshot(props);
 }
 
 export function syncDeskMonitorWidgetDisconnected() {
   pushDeskMonitorSnapshot(DISCONNECTED);
+}
+
+export function syncDeskMonitorWidgetLoading() {
+  pushDeskMonitorSnapshot(LOADING);
 }
 
 export function syncDeskMonitorWidget(snapshot: BurnRateSnapshot) {
