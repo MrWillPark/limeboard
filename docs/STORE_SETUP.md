@@ -101,16 +101,16 @@ eas submit --platform ios --latest
 
 ### App Store Connect API key (recommended — no 2FA prompts)
 
-1. Copy `.env.apple.local.example` → `.env.apple.local`
+1. Copy `asc-api.local.example` → `asc-api.local`
 2. Paste your **Issuer ID** (App Store Connect → Users and Access → Integrations → App Store Connect API)
 3. Key file lives at `credentials/AuthKey_HD38GZM6FC.p8` (gitignored)
 
 ```bash
-cp .env.apple.local.example .env.apple.local
+cp asc-api.local.example asc-api.local
 # edit EXPO_ASC_API_KEY_ISSUER_ID=...
 
 # Verify API access
-set -a && source .env.apple.local && set +a
+set -a && source asc-api.local && set +a
 node scripts/verify-asc-api.mjs
 ```
 

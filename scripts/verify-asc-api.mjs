@@ -2,7 +2,7 @@
 /**
  * Verify App Store Connect API credentials.
  *
- * Usage (env vars or .env.apple.local):
+ * Usage (env vars or asc-api.local):
  *   node scripts/verify-asc-api.mjs
  *
  * Required:
@@ -32,7 +32,7 @@ function loadDotEnv(path) {
   }
 }
 
-loadDotEnv(resolve(root, '.env.apple.local'));
+loadDotEnv(resolve(root, 'asc-api.local'));
 
 const keyPath = process.env.EXPO_ASC_API_KEY_PATH ?? './credentials/AuthKey_HD38GZM6FC.p8';
 const keyId = process.env.EXPO_ASC_API_KEY_ID ?? 'HD38GZM6FC';
@@ -45,7 +45,7 @@ Missing EXPO_ASC_API_KEY_ISSUER_ID.
 Find it in App Store Connect → Users and Access → Integrations → App Store Connect API
 (top of page, UUID like xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx).
 
-Add to .env.apple.local:
+Add to asc-api.local:
   EXPO_ASC_API_KEY_ISSUER_ID=your-issuer-id
 `);
   process.exit(1);

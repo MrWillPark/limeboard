@@ -32,7 +32,9 @@ yarn-error.*
 
 # local env files
 .env*.local
-.env.apple.local
+
+# App Store Connect API creds (shell-only — do NOT use .env.*.local naming; Expo loads those)
+asc-api.local
 
 # Apple API keys (AuthKey_*.p8)
 credentials/
