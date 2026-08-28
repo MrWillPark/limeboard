@@ -1,19 +1,17 @@
 import Constants from 'expo-constants';
 
-function read(key: string): string | undefined {
-  const fromProcess = process.env[key];
-  if (fromProcess) return fromProcess;
-  const extra = Constants.expoConfig?.extra as Record<string, string> | undefined;
-  return extra?.[key];
-}
-
+/**
+ * EXPO_PUBLIC_* must use static `process.env.EXPO_PUBLIC_FOO` access so Metro
+ * inlines them at bundle time (EAS production builds). Dynamic process.env[key]
+ * is undefined in release binaries.
+ */
 export const env = {
-  supabaseUrl: read('EXPO_PUBLIC_SUPABASE_URL'),
-  supabaseAnonKey: read('EXPO_PUBLIC_SUPABASE_ANON_KEY'),
-  revenueCatIosKey: read('EXPO_PUBLIC_REVENUECAT_IOS_KEY'),
-  revenueCatAndroidKey: read('EXPO_PUBLIC_REVENUECAT_ANDROID_KEY'),
+  supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
+  supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  revenueCatIosKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY,
+  revenueCatAndroidKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY,
   /** Dev-only Pro bypass — never active in production builds. */
-  devPro: __DEV__ && read('EXPO_PUBLIC_DEV_PRO') === 'true',
+  devPro: __DEV__ && process.env.EXPO_PUBLIC_DEV_PRO === 'true',
 } as const;
 
 export function isSupabaseConfigured(): boolean {
