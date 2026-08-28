@@ -1,4 +1,13 @@
-import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import {
   clearApiKey,
@@ -9,6 +18,7 @@ import {
   type StoredKeyMeta,
 } from '@/lib/auth/secure-key';
 import { validateApiKey } from '@/lib/openrouter/client';
+import { isOpenRouterAuthError, isOpenRouterNetworkError } from '@/lib/openrouter/errors';
 import { syncBalanceWidgetDisconnected } from '@/lib/widgets/sync-balance-widget';
 import { useScreenshotPreviewOptional } from '@/providers/screenshot-preview-provider';
 import { useSession } from '@/providers/session-provider';
@@ -21,20 +31,68 @@ type OpenRouterState = {
   isConnected: boolean;
   /** True when a key is stored — ignores screenshot preview overlay. */
   realIsConnected: boolean;
+  /** Set when a stored key was rejected by OpenRouter on load. */
+  keyRejectedMessage: string | null;
   connect: (apiKey: string) => Promise<void>;
   disconnect: () => Promise<void>;
   refreshMeta: () => Promise<void>;
+  clearKeyRejectedMessage: () => void;
 };
 
 const OpenRouterContext = createContext<OpenRouterState | null>(null);
 
+async function loadValidatedKey(userId: string): Promise<{
+  key: string | null;
+  meta: StoredKeyMeta | null;
+  rejected: string | null;
+}> {
+  const stored = await getApiKey(userId);
+  if (!stored) return { key: null, meta: null, rejected: null };
+
+  try {
+    const info = await validateApiKey(stored);
+    const meta: StoredKeyMeta = {
+      labelHint: info.label,
+      savedAt: new Date().toISOString(),
+      isManagementKey: info.is_management_key,
+      ownerUserId: userId,
+    };
+    await saveApiKey(stored, meta, userId);
+    return { key: stored, meta, rejected: null };
+  } catch (error) {
+    if (isOpenRouterAuthError(error)) {
+      await clearApiKey(userId);
+      const message =
+        error instanceof Error ? error.message : 'OpenRouter rejected this API key';
+      return {
+        key: null,
+        meta: null,
+        rejected: `${message}. Reconnect your management key in Settings.`,
+      };
+    }
+
+    if (isOpenRouterNetworkError(error)) {
+      const meta = await getKeyMeta(userId);
+      return { key: stored, meta, rejected: null };
+    }
+
+    throw error;
+  }
+}
+
 export function OpenRouterProvider({ children }: PropsWithChildren) {
   const { user, ready: sessionReady } = useSession();
   const userId = user?.id ?? null;
+  const queryClient = useQueryClient();
   const [ready, setReady] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [meta, setMeta] = useState<StoredKeyMeta | null>(null);
+  const [keyRejectedMessage, setKeyRejectedMessage] = useState<string | null>(null);
   const preview = useScreenshotPreviewOptional();
+
+  useEffect(() => {
+    queryClient.removeQueries({ queryKey: ['openrouter'] });
+  }, [userId, queryClient]);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,21 +100,22 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
     (async () => {
       if (!sessionReady) return;
 
+      setApiKey(null);
+      setMeta(null);
+      setKeyRejectedMessage(null);
+
       if (!userId) {
-        if (!cancelled) {
-          setApiKey(null);
-          setMeta(null);
-          setReady(true);
-        }
+        if (!cancelled) setReady(true);
         return;
       }
 
       setReady(false);
       try {
-        const [key, keyMeta] = await Promise.all([getApiKey(userId), getKeyMeta(userId)]);
+        const loaded = await loadValidatedKey(userId);
         if (cancelled) return;
-        setApiKey(key);
-        setMeta(keyMeta);
+        setApiKey(loaded.key);
+        setMeta(loaded.meta);
+        setKeyRejectedMessage(loaded.rejected);
       } catch (e) {
         console.warn('Failed to restore API key from secure storage', e);
         if (!cancelled) {
@@ -86,23 +145,28 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
         ownerUserId: userId,
       };
       await saveApiKey(trimmed, nextMeta, userId);
+      setKeyRejectedMessage(null);
       setApiKey(trimmed);
       setMeta(nextMeta);
+      queryClient.removeQueries({ queryKey: ['openrouter'] });
     },
-    [userId]
+    [userId, queryClient]
   );
 
   const disconnect = useCallback(async () => {
     if (!userId) {
       setApiKey(null);
       setMeta(null);
+      setKeyRejectedMessage(null);
       return;
     }
     await clearApiKey(userId);
     setApiKey(null);
     setMeta(null);
+    setKeyRejectedMessage(null);
+    queryClient.removeQueries({ queryKey: ['openrouter'] });
     syncBalanceWidgetDisconnected();
-  }, [userId]);
+  }, [userId, queryClient]);
 
   const refreshMeta = useCallback(async () => {
     if (!userId) {
@@ -111,6 +175,10 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
     }
     setMeta(await getKeyMeta(userId));
   }, [userId]);
+
+  const clearKeyRejectedMessage = useCallback(() => {
+    setKeyRejectedMessage(null);
+  }, []);
 
   const realIsConnected = Boolean(apiKey);
   const previewMode = preview?.mode ?? 'live';
@@ -124,9 +192,11 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
       maskedKey: apiKey ? maskKey(apiKey) : null,
       isConnected: displayIsConnected,
       realIsConnected,
+      keyRejectedMessage,
       connect,
       disconnect,
       refreshMeta,
+      clearKeyRejectedMessage,
     }),
     [
       sessionReady,
@@ -135,9 +205,11 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
       meta,
       displayIsConnected,
       realIsConnected,
+      keyRejectedMessage,
       connect,
       disconnect,
       refreshMeta,
+      clearKeyRejectedMessage,
     ]
   );
 

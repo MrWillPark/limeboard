@@ -24,42 +24,50 @@ import {
   type AnalyticsQueryBody,
   type AnalyticsQueryResult,
 } from '@/lib/openrouter/client';
+import { isOpenRouterAuthError } from '@/lib/openrouter/errors';
 import { useAuth } from '@/providers/auth-provider';
 
+const OPENROUTER_QUERY_OPTS = {
+  retry: (failureCount: number, error: unknown) =>
+    !isOpenRouterAuthError(error) && failureCount < 2,
+} as const;
+
 export function useKeyInfo() {
-  const { apiKey } = useAuth();
+  const { apiKey, ready } = useAuth();
   return useQuery({
     queryKey: ['openrouter', 'key', apiKey],
     queryFn: () => getCurrentKey(apiKey!),
-    enabled: Boolean(apiKey),
+    enabled: ready && Boolean(apiKey),
+    ...OPENROUTER_QUERY_OPTS,
   });
 }
 
 export function useCredits() {
-  const { apiKey } = useAuth();
+  const { apiKey, meta, ready } = useAuth();
   return useQuery({
     queryKey: ['openrouter', 'credits', apiKey],
     queryFn: () => getCredits(apiKey!),
-    enabled: Boolean(apiKey),
+    enabled: ready && Boolean(apiKey) && Boolean(meta?.isManagementKey),
+    ...OPENROUTER_QUERY_OPTS,
   });
 }
 
 export function useActivity() {
-  const { apiKey, meta } = useAuth();
+  const { apiKey, meta, ready } = useAuth();
   return useQuery({
     queryKey: ['openrouter', 'activity', apiKey],
     queryFn: () => getActivity(apiKey!),
-    enabled: Boolean(apiKey) && Boolean(meta?.isManagementKey),
+    enabled: ready && Boolean(apiKey) && Boolean(meta?.isManagementKey),
     retry: false,
   });
 }
 
 export function useManagedKeys() {
-  const { apiKey, meta } = useAuth();
+  const { apiKey, meta, ready } = useAuth();
   return useQuery({
     queryKey: ['openrouter', 'keys', apiKey],
     queryFn: () => listKeys(apiKey!),
-    enabled: Boolean(apiKey) && Boolean(meta?.isManagementKey),
+    enabled: ready && Boolean(apiKey) && Boolean(meta?.isManagementKey),
     retry: false,
   });
 }
@@ -127,9 +135,10 @@ export function useAnalyticsSeries({
   withDimension = false,
   enabled: enabledArg = true,
 }: AnalyticsSeriesArgs) {
-  const { apiKey, meta } = useAuth();
+  const { apiKey, meta, ready } = useAuth();
   const enabled =
     enabledArg &&
+    ready &&
     Boolean(apiKey) &&
     Boolean(meta?.isManagementKey) &&
     needsAnalyticsApi(rollup);
@@ -197,7 +206,7 @@ export function useAnalyticsSeries({
 
 /** Aggregate Overview for ranges without key counters (currently 3h only). */
 export function useAnalyticsOverview(enabled: boolean) {
-  const { apiKey, meta } = useAuth();
+  const { apiKey, meta, ready } = useAuth();
 
   return useQuery({
     queryKey: ['openrouter', 'analytics', 'overview', apiKey, '3h'],
@@ -237,7 +246,7 @@ export function useAnalyticsOverview(enabled: boolean) {
         rangeEnd: overviewRange.end,
       };
     },
-    enabled: Boolean(apiKey) && Boolean(meta?.isManagementKey) && enabled,
+    enabled: ready && Boolean(apiKey) && Boolean(meta?.isManagementKey) && enabled,
     retry: false,
     staleTime: 30_000,
   });

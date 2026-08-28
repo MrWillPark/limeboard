@@ -62,7 +62,8 @@ const FREE_TIMEFRAMES: TimeframeId[] = ['today', '7d'];
 
 export default function CockpitScreen() {
   const { user } = useSession();
-  const { ready, isConnected, meta, maskedKey } = useOpenRouter();
+  const { ready, isConnected, meta, maskedKey, keyRejectedMessage, clearKeyRejectedMessage } =
+    useOpenRouter();
   const {
     isPro,
     canAccessSpendTrend,
@@ -232,6 +233,18 @@ export default function CockpitScreen() {
     >
       {!isConnected ? (
         <>
+          {keyRejectedMessage ? (
+            <Panel style={{ gap: spacing.sm }}>
+              <AppText color={colors.amber}>{keyRejectedMessage}</AppText>
+              <AppButton
+                title="Connect OpenRouter"
+                onPress={() => {
+                  clearKeyRejectedMessage();
+                  router.push('/connect');
+                }}
+              />
+            </Panel>
+          ) : null}
           <PlatformPulse />
           <Panel style={{ gap: spacing.sm }}>
             <AppText variant="label" color={colors.limeSoft}>
@@ -259,6 +272,13 @@ export default function CockpitScreen() {
                     ''
                 )}
               </AppText>
+              {keyQuery.isError ? (
+                <AppButton
+                  title="Reconnect key"
+                  variant="ghost"
+                  onPress={() => router.push('/connect')}
+                />
+              ) : null}
             </Panel>
           )}
 

@@ -31,7 +31,7 @@ type Args = {
 };
 
 export function useBurnRate({ enabled = true, isManagementKey, liveSpend }: Args) {
-  const { apiKey } = useOpenRouter();
+  const { apiKey, ready } = useOpenRouter();
 
   const analyticsQuery = useQuery({
     queryKey: ['openrouter', 'burn-rate', 'analytics', apiKey],
@@ -49,7 +49,7 @@ export function useBurnRate({ enabled = true, isManagementKey, liveSpend }: Args
         truncated: result.metadata.truncated,
       };
     },
-    enabled: Boolean(apiKey) && Boolean(isManagementKey) && enabled,
+    enabled: ready && Boolean(apiKey) && Boolean(isManagementKey) && enabled,
     refetchInterval: BURN_RATE_POLL_MS,
     staleTime: BURN_RATE_POLL_MS / 2,
     retry: false,
@@ -58,7 +58,7 @@ export function useBurnRate({ enabled = true, isManagementKey, liveSpend }: Args
   const keyPollQuery = useQuery({
     queryKey: ['openrouter', 'burn-rate', 'key-poll', apiKey],
     queryFn: () => getCurrentKey(apiKey!),
-    enabled: Boolean(apiKey) && !isManagementKey && enabled,
+    enabled: ready && Boolean(apiKey) && !isManagementKey && enabled,
     refetchInterval: BURN_RATE_POLL_MS,
     staleTime: BURN_RATE_POLL_MS / 2,
     retry: false,

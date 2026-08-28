@@ -79,6 +79,7 @@ async function migrateLegacyKey(userId: string): Promise<{ key: string | null; m
   const legacy = await readPair(LEGACY_KEY_STORAGE, LEGACY_KEY_META);
   if (!legacy.key) return { key: null, meta: null };
 
+  const trimmed = legacy.key.trim();
   const meta: StoredKeyMeta = {
     ...(legacy.meta ?? {
       labelHint: 'OpenRouter',
@@ -89,9 +90,9 @@ async function migrateLegacyKey(userId: string): Promise<{ key: string | null; m
   };
 
   const { key: keyId, meta: metaId } = storageKeys(userId);
-  await writePair(keyId, metaId, legacy.key, meta);
+  await writePair(keyId, metaId, trimmed, meta);
   await deletePair(LEGACY_KEY_STORAGE, LEGACY_KEY_META);
-  return { key: legacy.key, meta };
+  return { key: trimmed, meta };
 }
 
 export async function saveApiKey(
@@ -112,10 +113,10 @@ export async function getApiKey(userId: string | null | undefined): Promise<stri
 
   const { key: keyId, meta: metaId } = storageKeys(userId);
   const stored = await readPair(keyId, metaId);
-  if (stored.key) return stored.key;
+  if (stored.key) return stored.key.trim();
 
   const migrated = await migrateLegacyKey(userId);
-  return migrated.key;
+  return migrated.key?.trim() ?? null;
 }
 
 export async function getKeyMeta(
