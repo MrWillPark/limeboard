@@ -103,9 +103,11 @@ echo ""
 
 echo "==> Step 6: Apple Sign In (Supabase + Apple Developer)"
 echo "    Supabase → Auth → Providers → Apple (enable)"
+echo "    Client IDs (comma-separated, Services ID first):"
+echo "      app.limeboard.mobile.auth, app.limeboard.mobile"
+echo "    Secret Key: generate with scripts/generate-apple-secret.mjs (AuthKey_22P645F247.p8)"
 echo "    Apple Developer → Identifiers → app.limeboard.mobile → Sign in with Apple"
-echo "    Add Services ID + key for Supabase if using web flow"
-echo "    Native iOS uses signInWithIdToken (already wired in app)"
+echo "    Native iOS uses signInWithIdToken — bundle ID must be in Client IDs list"
 echo ""
 
 echo "==> Step 7: Deploy rankings sync edge function"

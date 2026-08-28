@@ -11,6 +11,7 @@ import {
 import { validateApiKey } from '@/lib/openrouter/client';
 import { syncBalanceWidgetDisconnected } from '@/lib/widgets/sync-balance-widget';
 import { useScreenshotPreviewOptional } from '@/providers/screenshot-preview-provider';
+import { useSession } from '@/providers/session-provider';
 
 type OpenRouterState = {
   ready: boolean;
@@ -28,6 +29,8 @@ type OpenRouterState = {
 const OpenRouterContext = createContext<OpenRouterState | null>(null);
 
 export function OpenRouterProvider({ children }: PropsWithChildren) {
+  const { user, ready: sessionReady } = useSession();
+  const userId = user?.id ?? null;
   const [ready, setReady] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [meta, setMeta] = useState<StoredKeyMeta | null>(null);
@@ -35,53 +38,79 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const [key, keyMeta] = await Promise.all([getApiKey(), getKeyMeta()]);
-        if (cancelled) return;
 
-        if (!key) {
+    (async () => {
+      if (!sessionReady) return;
+
+      if (!userId) {
+        if (!cancelled) {
           setApiKey(null);
           setMeta(null);
-          return;
+          setReady(true);
         }
+        return;
+      }
 
+      setReady(false);
+      try {
+        const [key, keyMeta] = await Promise.all([getApiKey(userId), getKeyMeta(userId)]);
+        if (cancelled) return;
         setApiKey(key);
         setMeta(keyMeta);
       } catch (e) {
         console.warn('Failed to restore API key from secure storage', e);
+        if (!cancelled) {
+          setApiKey(null);
+          setMeta(null);
+        }
       } finally {
         if (!cancelled) setReady(true);
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sessionReady, userId]);
 
-  const connect = useCallback(async (rawKey: string) => {
-    const trimmed = rawKey.trim();
-    const info = await validateApiKey(trimmed);
-    const nextMeta: StoredKeyMeta = {
-      labelHint: info.label,
-      savedAt: new Date().toISOString(),
-      isManagementKey: info.is_management_key,
-    };
-    await saveApiKey(trimmed, nextMeta);
-    setApiKey(trimmed);
-    setMeta(nextMeta);
-  }, []);
+  const connect = useCallback(
+    async (rawKey: string) => {
+      if (!userId) throw new Error('Sign in before connecting an OpenRouter key');
+
+      const trimmed = rawKey.trim();
+      const info = await validateApiKey(trimmed);
+      const nextMeta: StoredKeyMeta = {
+        labelHint: info.label,
+        savedAt: new Date().toISOString(),
+        isManagementKey: info.is_management_key,
+        ownerUserId: userId,
+      };
+      await saveApiKey(trimmed, nextMeta, userId);
+      setApiKey(trimmed);
+      setMeta(nextMeta);
+    },
+    [userId]
+  );
 
   const disconnect = useCallback(async () => {
-    await clearApiKey();
+    if (!userId) {
+      setApiKey(null);
+      setMeta(null);
+      return;
+    }
+    await clearApiKey(userId);
     setApiKey(null);
     setMeta(null);
     syncBalanceWidgetDisconnected();
-  }, []);
+  }, [userId]);
 
   const refreshMeta = useCallback(async () => {
-    setMeta(await getKeyMeta());
-  }, []);
+    if (!userId) {
+      setMeta(null);
+      return;
+    }
+    setMeta(await getKeyMeta(userId));
+  }, [userId]);
 
   const realIsConnected = Boolean(apiKey);
   const previewMode = preview?.mode ?? 'live';
@@ -89,7 +118,7 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
 
   const value = useMemo<OpenRouterState>(
     () => ({
-      ready,
+      ready: sessionReady && ready,
       apiKey,
       meta,
       maskedKey: apiKey ? maskKey(apiKey) : null,
@@ -99,7 +128,17 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
       disconnect,
       refreshMeta,
     }),
-    [ready, apiKey, meta, displayIsConnected, realIsConnected, connect, disconnect, refreshMeta]
+    [
+      sessionReady,
+      ready,
+      apiKey,
+      meta,
+      displayIsConnected,
+      realIsConnected,
+      connect,
+      disconnect,
+      refreshMeta,
+    ]
   );
 
   return <OpenRouterContext.Provider value={value}>{children}</OpenRouterContext.Provider>;

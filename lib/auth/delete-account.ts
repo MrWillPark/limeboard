@@ -46,7 +46,9 @@ export async function deleteLimeBoardAccount(): Promise<void> {
   }
 
   try {
-    await clearApiKey();
+    if (session.user?.id) {
+      await clearApiKey(session.user.id);
+    }
   } catch {
     // ignore local key clear failures
   }

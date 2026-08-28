@@ -13,13 +13,19 @@ export function useOAuthDeepLinkHandler() {
 
     const handle = async (url: string) => {
       if (handling.current) return;
-      if (!url.includes('access_token') && !url.includes('code=')) return;
+      const isAuthCallback =
+        url.includes('access_token') ||
+        url.includes('code=') ||
+        url.includes('type=recovery');
+      if (!isAuthCallback) return;
 
       handling.current = true;
       try {
         await createSessionFromUrl(url);
       } catch (e) {
-        console.warn('OAuth callback failed', e);
+        if (__DEV__) {
+          console.warn('Auth callback failed', e);
+        }
       } finally {
         handling.current = false;
       }

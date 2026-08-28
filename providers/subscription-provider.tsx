@@ -15,6 +15,7 @@ import Purchases, {
   type PurchasesPackage,
 } from 'react-native-purchases';
 
+import { isAdminAccountEmail } from '@/lib/auth/admin-account';
 import { env, canUseRevenueCatNative } from '@/lib/config/env';
 import { PRO_ENTITLEMENT } from '@/lib/config/products';
 import { useScreenshotPreviewOptional } from '@/providers/screenshot-preview-provider';
@@ -35,6 +36,16 @@ type SubscriptionState = {
 
 const SubscriptionContext = createContext<SubscriptionState | null>(null);
 
+function isRevenueCatNoise(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('OfferingsManager.Error') ||
+    message.includes('products registered') ||
+    message.includes('CONFIGURATION_ERROR') ||
+    message.includes('could not be fetched from App Store')
+  );
+}
+
 export function SubscriptionProvider({ children }: PropsWithChildren) {
   const { user, session } = useSession();
   const [ready, setReady] = useState(!canUseRevenueCatNative());
@@ -42,13 +53,24 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
 
-  const applyCustomerInfo = useCallback((info: CustomerInfo | null) => {
-    setCustomerInfo(info);
-    const active = info?.entitlements.active[ENTITLEMENT]?.isActive === true;
-    setIsPro(active || env.devPro);
-  }, []);
+  const adminAccount = isAdminAccountEmail(user?.email);
+
+  const applyCustomerInfo = useCallback(
+    (info: CustomerInfo | null) => {
+      setCustomerInfo(info);
+      const active = info?.entitlements.active[ENTITLEMENT]?.isActive === true;
+      setIsPro(active || env.devPro || adminAccount);
+    },
+    [adminAccount]
+  );
 
   useEffect(() => {
+    if (adminAccount) {
+      setIsPro(true);
+      setReady(true);
+      return;
+    }
+
     if (!canUseRevenueCatNative()) {
       setReady(true);
       setIsPro(env.devPro);
@@ -67,7 +89,7 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.INFO : LOG_LEVEL.WARN);
+    Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.WARN : LOG_LEVEL.ERROR);
 
     let cancelled = false;
 
@@ -88,7 +110,9 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
         applyCustomerInfo(info);
         setOfferings(currentOfferings);
       } catch (e) {
-        console.warn('RevenueCat init failed', e);
+        if (!isRevenueCatNoise(e) && __DEV__) {
+          console.warn('RevenueCat init failed', e);
+        }
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -97,10 +121,10 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, applyCustomerInfo]);
+  }, [user?.id, applyCustomerInfo, adminAccount]);
 
   useEffect(() => {
-    if (!canUseRevenueCatNative() || !user?.id || !session) return;
+    if (adminAccount || !canUseRevenueCatNative() || !user?.id || !session) return;
 
     (async () => {
       try {
@@ -108,13 +132,15 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
         applyCustomerInfo(info);
         setOfferings(await Purchases.getOfferings());
       } catch (e) {
-        console.warn('RevenueCat logIn failed', e);
+        if (!isRevenueCatNoise(e) && __DEV__) {
+          console.warn('RevenueCat logIn failed', e);
+        }
       }
     })();
-  }, [user?.id, session, applyCustomerInfo]);
+  }, [user?.id, session, applyCustomerInfo, adminAccount]);
 
   useEffect(() => {
-    if (!canUseRevenueCatNative()) return;
+    if (!canUseRevenueCatNative() || adminAccount) return;
 
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
@@ -124,14 +150,15 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
     });
 
     return () => sub.remove();
-  }, [applyCustomerInfo]);
+  }, [applyCustomerInfo, adminAccount]);
 
   const refresh = useCallback(async () => {
+    if (adminAccount) return;
     if (!canUseRevenueCatNative()) return;
     const info = await Purchases.getCustomerInfo();
     applyCustomerInfo(info);
     setOfferings(await Purchases.getOfferings());
-  }, [applyCustomerInfo]);
+  }, [applyCustomerInfo, adminAccount]);
 
   const purchase = useCallback(
     async (pkg: PurchasesPackage) => {

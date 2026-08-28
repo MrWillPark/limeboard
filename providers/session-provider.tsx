@@ -10,7 +10,7 @@ import {
 import type { Session, User } from '@supabase/supabase-js';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
-import { signInWithOAuthProvider } from '@/lib/auth/oauth';
+import { getOAuthRedirectUri, signInWithOAuthProvider } from '@/lib/auth/oauth';
 import { getSupabase } from '@/lib/supabase/client';
 import { isSupabaseConfigured } from '@/lib/config/env';
 import { useOAuthDeepLinkHandler } from '@/hooks/use-oauth-deep-link';
@@ -19,10 +19,14 @@ type SessionState = {
   ready: boolean;
   session: Session | null;
   user: User | null;
+  passwordRecovery: boolean;
   signInWithApple: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
+  resetPasswordForEmail: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  clearPasswordRecovery: () => void;
   signOut: () => Promise<void>;
 };
 
@@ -31,6 +35,7 @@ const SessionContext = createContext<SessionState | null>(null);
 export function SessionProvider({ children }: PropsWithChildren) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   useOAuthDeepLinkHandler();
 
@@ -48,9 +53,15 @@ export function SessionProvider({ children }: PropsWithChildren) {
       setReady(true);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next);
       setReady(true);
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true);
+      }
+      if (event === 'SIGNED_OUT') {
+        setPasswordRecovery(false);
+      }
     });
 
     return () => {
@@ -99,8 +110,32 @@ export function SessionProvider({ children }: PropsWithChildren) {
     if (error) throw error;
   }, []);
 
+  const resetPasswordForEmail = useCallback(async (email: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error('Supabase is not configured');
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: getOAuthRedirectUri(),
+    });
+    if (error) throw error;
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error('Supabase is not configured');
+
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+    setPasswordRecovery(false);
+  }, []);
+
+  const clearPasswordRecovery = useCallback(() => {
+    setPasswordRecovery(false);
+  }, []);
+
   const signOut = useCallback(async () => {
     const supabase = getSupabase();
+    setPasswordRecovery(false);
     if (!supabase) {
       setSession(null);
       return;
@@ -114,13 +149,29 @@ export function SessionProvider({ children }: PropsWithChildren) {
       ready,
       session,
       user: session?.user ?? null,
+      passwordRecovery,
       signInWithApple,
       signInWithGoogle,
       signInWithEmail,
       signUpWithEmail,
+      resetPasswordForEmail,
+      updatePassword,
+      clearPasswordRecovery,
       signOut,
     }),
-    [ready, session, signInWithApple, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut]
+    [
+      ready,
+      session,
+      passwordRecovery,
+      signInWithApple,
+      signInWithGoogle,
+      signInWithEmail,
+      signUpWithEmail,
+      resetPasswordForEmail,
+      updatePassword,
+      clearPasswordRecovery,
+      signOut,
+    ]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

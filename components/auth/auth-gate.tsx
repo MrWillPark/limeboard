@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments, type Href } from 'expo-router';
 
 import { AppText } from '@/components/ui/app-text';
 import { colors } from '@/constants/theme';
@@ -9,7 +9,7 @@ import { isSupabaseConfigured } from '@/lib/config/env';
 import { useSession } from '@/providers/session-provider';
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const { ready, session } = useSession();
+  const { ready, session, passwordRecovery } = useSession();
   const segments = useSegments();
   const router = useRouter();
 
@@ -18,6 +18,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
     const inAuthGroup = segments[0] === '(auth)';
     const inOAuthCallback = segments[0] === 'auth' && segments[1] === 'callback';
+    const authRoute = segments[1] as string | undefined;
+    const inPasswordReset = inAuthGroup && authRoute === 'reset-password';
+    const inForgotPassword = inAuthGroup && authRoute === 'forgot-password';
 
     if (!isSupabaseConfigured()) {
       if (__DEV__ && inAuthGroup) {
@@ -26,15 +29,20 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (passwordRecovery && !inPasswordReset) {
+      router.replace('/(auth)/reset-password' as Href);
+      return;
+    }
+
     if (!session && !inAuthGroup && !inOAuthCallback) {
       router.replace('/(auth)/welcome');
       return;
     }
 
-    if (session && inAuthGroup) {
+    if (session && inAuthGroup && !inOAuthCallback && !inPasswordReset && !inForgotPassword) {
       router.replace('/(tabs)');
     }
-  }, [ready, session, segments, router]);
+  }, [ready, session, passwordRecovery, segments, router]);
 
   if (!ready) {
     return (

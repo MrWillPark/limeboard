@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
@@ -41,6 +41,12 @@ export default function SignInScreen() {
       <View style={{ gap: spacing.sm }}>
         <AppText variant="title">{mode === 'sign-in' ? 'Sign in' : 'Create account'}</AppText>
         <AppText>Use the email tied to your LimeBoard subscription.</AppText>
+        {mode === 'sign-in' ? (
+          <AppText variant="caption" color={colors.textSecondary}>
+            Google-only accounts: use Continue with Google on the welcome screen. Set a password via
+            Forgot password if you need email sign-in.
+          </AppText>
+        ) : null}
       </View>
 
       <Panel style={{ gap: spacing.md }}>
@@ -93,6 +99,14 @@ export default function SignInScreen() {
           variant="ghost"
           onPress={() => setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')}
         />
+
+        {mode === 'sign-in' ? (
+          <AppButton
+            title="Forgot password?"
+            variant="ghost"
+            onPress={() => router.push('/(auth)/forgot-password' as Href)}
+          />
+        ) : null}
       </Panel>
 
       <AppButton title="Back" variant="ghost" onPress={() => router.back()} />

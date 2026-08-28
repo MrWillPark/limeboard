@@ -127,13 +127,19 @@ export default function WelcomeScreen() {
 
       <Panel style={{ gap: spacing.md }}>
         {appleAvailable ? (
-          <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-            cornerRadius={12}
-            style={{ width: '100%', height: 48, opacity: loading === 'apple' ? 0.6 : 1 }}
-            onPress={() => void onApple()}
-          />
+          <>
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+              cornerRadius={12}
+              style={{ width: '100%', height: 48, opacity: loading === 'apple' ? 0.6 : 1 }}
+              onPress={() => void onApple()}
+            />
+            <AppText variant="caption" color={colors.textSecondary}>
+              Choose &quot;Share My Email&quot; to link an existing LimeBoard account. Hide My
+              Email creates a separate account.
+            </AppText>
+          </>
         ) : Platform.OS === 'ios' ? (
           <AppText variant="caption" color={colors.textSecondary}>
             Sign in with Apple requires a dev build (not supported in Expo Go). Use Google or

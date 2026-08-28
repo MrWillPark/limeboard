@@ -59,7 +59,10 @@ export default function SettingsScreen() {
   }, [signOut]);
 
   const onSignOut = () => {
-    Alert.alert('Sign out?', 'Your OpenRouter key stays on this device until removed.', [
+    Alert.alert(
+      'Sign out?',
+      'Your OpenRouter key stays saved for this account on this device. Other accounts will not see it.',
+      [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign out',
