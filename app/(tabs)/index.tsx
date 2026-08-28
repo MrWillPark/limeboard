@@ -260,6 +260,20 @@ export default function CockpitScreen() {
         </>
       ) : (
         <>
+          {keyRejectedMessage ? (
+            <Panel style={{ gap: spacing.sm }}>
+              <AppText color={colors.amber}>{keyRejectedMessage}</AppText>
+              <AppButton
+                title="Update key"
+                variant="ghost"
+                onPress={() => {
+                  clearKeyRejectedMessage();
+                  router.push('/connect');
+                }}
+              />
+            </Panel>
+          ) : null}
+
           {(keyQuery.isError || creditsQuery.isError) && (
             <Panel style={{ gap: spacing.sm }}>
               <AppText color={colors.amber}>

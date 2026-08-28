@@ -61,13 +61,15 @@ async function loadValidatedKey(userId: string): Promise<{
     return { key: stored, meta, rejected: null };
   } catch (error) {
     if (isOpenRouterAuthError(error)) {
-      await clearApiKey(userId);
+      // Keep the key in SecureStore — only explicit disconnect removes it.
+      // Build 10 previously deleted keys here, which made logout/login look like data loss.
+      const meta = await getKeyMeta(userId);
       const message =
         error instanceof Error ? error.message : 'OpenRouter rejected this API key';
       return {
-        key: null,
-        meta: null,
-        rejected: `${message}. Reconnect your management key in Settings.`,
+        key: stored,
+        meta,
+        rejected: `${message}. Remove the key in Settings and reconnect if this persists.`,
       };
     }
 
