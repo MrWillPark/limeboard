@@ -12,7 +12,8 @@ export const env = {
   supabaseAnonKey: read('EXPO_PUBLIC_SUPABASE_ANON_KEY'),
   revenueCatIosKey: read('EXPO_PUBLIC_REVENUECAT_IOS_KEY'),
   revenueCatAndroidKey: read('EXPO_PUBLIC_REVENUECAT_ANDROID_KEY'),
-  devPro: read('EXPO_PUBLIC_DEV_PRO') === 'true',
+  /** Dev-only Pro bypass — never active in production builds. */
+  devPro: __DEV__ && read('EXPO_PUBLIC_DEV_PRO') === 'true',
 } as const;
 
 export function isSupabaseConfigured(): boolean {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Linking, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, ScrollView, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import type { PurchasesPackage } from 'react-native-purchases';
 
@@ -18,6 +18,26 @@ const PRO_FEATURES = [
   'Fleet keys tab with provisioned key analytics',
   'Extended timeframes and chart types',
 ];
+
+function packageLabel(pkg: PurchasesPackage): string {
+  if (pkg.product.identifier === STORE_PRODUCTS.annual || pkg.packageType === 'ANNUAL') {
+    return 'LimeBoard Pro — Annual';
+  }
+  if (pkg.product.identifier === STORE_PRODUCTS.monthly || pkg.packageType === 'MONTHLY') {
+    return 'LimeBoard Pro — Monthly';
+  }
+  return pkg.product.title || 'LimeBoard Pro';
+}
+
+function packagePeriod(pkg: PurchasesPackage): string {
+  if (pkg.product.identifier === STORE_PRODUCTS.annual || pkg.packageType === 'ANNUAL') {
+    return '1 year';
+  }
+  if (pkg.product.identifier === STORE_PRODUCTS.monthly || pkg.packageType === 'MONTHLY') {
+    return '1 month';
+  }
+  return pkg.product.subscriptionPeriod ?? 'subscription period';
+}
 
 export default function PaywallScreen() {
   const { isPro, offerings, purchase, restore, showManageSubscriptions, ready } =
@@ -52,7 +72,13 @@ export default function PaywallScreen() {
     setError(null);
     setBusy(true);
     try {
-      await restore();
+      const restored = await restore();
+      Alert.alert(
+        restored ? 'Purchases restored' : 'No active subscription',
+        restored
+          ? 'Your LimeBoard Pro subscription is active on this account.'
+          : 'No active LimeBoard Pro subscription was found for this Apple ID.'
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Restore failed');
     } finally {
@@ -97,7 +123,7 @@ export default function PaywallScreen() {
             <AppText variant="title" color={colors.limeSoft}>
               You&apos;re on Pro
             </AppText>
-            {env.devPro && !isRevenueCatConfigured() ? (
+            {__DEV__ && env.devPro && !isRevenueCatConfigured() ? (
               <AppText variant="caption">
                 Dev Pro override is on (EXPO_PUBLIC_DEV_PRO). Store purchases are inactive in
                 this build.
@@ -114,33 +140,52 @@ export default function PaywallScreen() {
         ) : !isRevenueCatConfigured() ? (
           <Panel style={{ gap: spacing.sm }}>
             <AppText>
-              Store billing is not configured in this build. Use a development/production
-              build with RevenueCat keys, or set EXPO_PUBLIC_DEV_PRO=true to preview Pro UI.
+              {__DEV__
+                ? 'Store billing is not configured in this build. Use a development/production build with RevenueCat keys, or set EXPO_PUBLIC_DEV_PRO=true to preview Pro UI.'
+                : 'Subscriptions are temporarily unavailable. Please try again later or contact support.'}
             </AppText>
             <AppButton title="Close" variant="ghost" onPress={() => router.back()} />
           </Panel>
         ) : (
           <View style={{ gap: spacing.sm }}>
             {primary ? (
-              <AppButton
-                title={`Continue · ${primary.product.priceString}${
-                  primary === annual ? '/yr' : '/mo'
-                }`}
-                disabled={busy}
-                onPress={() => void onPurchase(primary)}
-              />
+              <Panel style={{ gap: spacing.xs }}>
+                <AppText variant="label" color={colors.limeSoft}>
+                  {packageLabel(primary)}
+                </AppText>
+                <AppText variant="title">
+                  {primary.product.priceString}
+                  {primary === annual ? ' / year' : ' / month'}
+                </AppText>
+                <AppText variant="caption" color={colors.textMuted}>
+                  {packagePeriod(primary)} auto-renewing subscription
+                </AppText>
+                <AppButton
+                  title={`Subscribe · ${primary.product.priceString}`}
+                  disabled={busy}
+                  onPress={() => void onPurchase(primary)}
+                />
+              </Panel>
             ) : (
               <AppText color={colors.amber}>
                 No products available yet. Confirm App Store / RevenueCat offerings are linked.
               </AppText>
             )}
             {monthly && annual && primary === annual ? (
-              <AppButton
-                title={`Monthly · ${monthly.product.priceString}/mo`}
-                variant="ghost"
-                disabled={busy}
-                onPress={() => void onPurchase(monthly)}
-              />
+              <Panel style={{ gap: spacing.xs }}>
+                <AppText variant="label" color={colors.textSecondary}>
+                  {packageLabel(monthly)}
+                </AppText>
+                <AppText>
+                  {monthly.product.priceString} / month · {packagePeriod(monthly)} auto-renewing
+                </AppText>
+                <AppButton
+                  title={`Subscribe monthly · ${monthly.product.priceString}`}
+                  variant="ghost"
+                  disabled={busy}
+                  onPress={() => void onPurchase(monthly)}
+                />
+              </Panel>
             ) : null}
             <AppButton
               title="Restore purchases"

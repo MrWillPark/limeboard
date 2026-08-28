@@ -25,7 +25,7 @@
 5. App Privacy → Privacy Policy URL: `https://limeboard.app/privacy`  
    (host the in-app copy on that domain, or temporarily use a public GitHub Pages URL)
 6. App Information → License Agreement: Apple Standard EULA is fine; also link Terms in app
-7. Note the numeric **Apple ID** (App Store Connect app id) → put in `eas.json` → `submit.production.ios.ascAppId`
+7. **Apple ID** (App Store Connect app id) is set in `eas.json` → `submit.production.ios.ascAppId` (`6805714980`).
 
 Paid Apps Agreement + banking/tax must be Active under Business.
 
@@ -39,7 +39,7 @@ Paid Apps Agreement + banking/tax must be Active under Business.
 4. Import / create products with IDs above
 5. Entitlement **`pro`** → attach both products
 6. Offering **`default`** → add Monthly + Annual packages
-7. Copy **Public app-specific API key** (starts with `appl_`) into `.env.local`:
+7. Copy **Public app-specific API key** (starts with `appl_`) into `.env.local` for local dev **and** into EAS production env for cloud builds (see below).
 
 ```
 EXPO_PUBLIC_REVENUECAT_IOS_KEY=appl_...
@@ -47,6 +47,29 @@ EXPO_PUBLIC_DEV_PRO=false
 ```
 
 Android later: `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY=goog_...`
+
+---
+
+## 2b. EAS environment variables (required for TestFlight / App Store builds)
+
+Local `.env.local` is **not** uploaded to EAS. Cloud builds need secrets in the **production** environment:
+
+```bash
+eas env:create --environment production --name EXPO_PUBLIC_SUPABASE_URL --value "https://<project>.supabase.co"
+eas env:create --environment production --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value "<anon-key>"
+eas env:create --environment production --name EXPO_PUBLIC_REVENUECAT_IOS_KEY --value "appl_..."
+eas env:create --environment production --name EXPO_PUBLIC_DEV_PRO --value "false"
+```
+
+Verify:
+
+```bash
+eas env:list --environment production
+```
+
+Without these, production builds skip the login gate and show “Store billing is not configured.”
+
+`EXPO_PUBLIC_DEV_PRO` only works in `__DEV__` builds — it cannot unlock Pro in App Store binaries.
 
 ---
 

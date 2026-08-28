@@ -35,8 +35,7 @@ export default function TermsScreen() {
             LimeBoard Pro is an auto-renewable subscription billed through Apple App Store or
             Google Play. Payment is charged to your store account at confirmation of purchase.
             Subscriptions renew unless cancelled at least 24 hours before the end of the
-            current period. Manage or cancel in your store account settings. Any unused
-            portion of a free trial is forfeited when you purchase a subscription.
+            current period. Manage or cancel in your store account settings.
           </Section>
           <Section title="Pricing">
             Prices are shown in the paywall and set by the stores for your region. We may

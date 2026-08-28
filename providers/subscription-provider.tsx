@@ -28,7 +28,7 @@ type SubscriptionState = {
   offerings: PurchasesOfferings | null;
   customerInfo: CustomerInfo | null;
   purchase: (pkg: PurchasesPackage) => Promise<void>;
-  restore: () => Promise<void>;
+  restore: () => Promise<boolean>;
   refresh: () => Promise<void>;
   showManageSubscriptions: () => Promise<void>;
 };
@@ -150,6 +150,7 @@ export function SubscriptionProvider({ children }: PropsWithChildren) {
     }
     const info = await Purchases.restorePurchases();
     applyCustomerInfo(info);
+    return info?.entitlements.active[ENTITLEMENT]?.isActive === true;
   }, [applyCustomerInfo]);
 
   const showManageSubscriptions = useCallback(async () => {
@@ -185,5 +186,3 @@ export function useSubscription() {
 
   return { ...ctx, isPro: false };
 }
-
-export { useEntitlement } from '@/hooks/use-entitlement';

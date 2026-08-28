@@ -40,9 +40,9 @@ export default function PrivacyScreen() {
             Subscriptions are processed by Apple or Google. We use RevenueCat to verify
             entitlements. We do not receive or store your full payment card details.
           </Section>
-          <Section title="Analytics">
-            We may collect basic crash and diagnostic data to improve reliability. We do not
-            sell personal information.
+          <Section title="Data we do not collect">
+            We do not sell personal information. We do not use third-party advertising or
+            cross-app tracking SDKs.
           </Section>
           <Section title="Deletion">
             You can delete your LimeBoard account in Settings → Delete account. This removes

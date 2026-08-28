@@ -54,7 +54,7 @@ import {
   useManagedKeys,
 } from '@/hooks/use-openrouter';
 import { useAuth } from '@/providers/auth-provider';
-import { useEntitlement } from '@/providers/subscription-provider';
+import { useEntitlement } from '@/hooks/use-entitlement';
 import {
   ManagementKeyHint,
   UpgradePanel,

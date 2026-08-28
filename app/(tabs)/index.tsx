@@ -46,7 +46,7 @@ import {
   useManagedKeys,
 } from '@/hooks/use-openrouter';
 import { useBurnRate } from '@/hooks/use-burn-rate';
-import { useEntitlement } from '@/providers/subscription-provider';
+import { useEntitlement } from '@/hooks/use-entitlement';
 import { useOpenRouter } from '@/providers/openrouter-provider';
 import { useSession } from '@/providers/session-provider';
 import {

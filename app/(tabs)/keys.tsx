@@ -9,7 +9,7 @@ import { colors, spacing } from '@/constants/theme';
 import { formatUsd } from '@/lib/analytics/burn';
 import { useKeyInfo, useManagedKeys } from '@/hooks/use-openrouter';
 import { useOpenRouter } from '@/providers/openrouter-provider';
-import { useEntitlement } from '@/providers/subscription-provider';
+import { useEntitlement } from '@/hooks/use-entitlement';
 
 export default function KeysScreen() {
   const { isConnected, meta, maskedKey } = useOpenRouter();

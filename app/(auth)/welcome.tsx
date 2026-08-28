@@ -56,6 +56,28 @@ export default function WelcomeScreen() {
   };
 
   if (!isSupabaseConfigured()) {
+    if (!__DEV__) {
+      return (
+        <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
+          style={{ flex: 1, backgroundColor: colors.bg }}
+          contentContainerStyle={{
+            paddingTop: insets.top + spacing.lg,
+            paddingHorizontal: spacing.lg,
+            paddingBottom: insets.bottom + spacing.lg,
+            flexGrow: 1,
+            justifyContent: 'center',
+            gap: spacing.lg,
+          }}
+        >
+          <AppText variant="title">Sign-in unavailable</AppText>
+          <AppText color={colors.textMuted}>
+            This build is missing server configuration. Contact support if this persists.
+          </AppText>
+        </ScrollView>
+      );
+    }
+
     return (
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
@@ -163,8 +185,23 @@ export default function WelcomeScreen() {
       ) : null}
 
       <AppText variant="caption" color={colors.textMuted}>
-        By continuing you agree to our Terms and Privacy Policy. OpenRouter API keys stay
-        on your device except for direct calls to OpenRouter.
+        By continuing you agree to our{' '}
+        <AppText
+          variant="caption"
+          color={colors.limeSoft}
+          onPress={() => router.push('/terms')}
+        >
+          Terms
+        </AppText>{' '}
+        and{' '}
+        <AppText
+          variant="caption"
+          color={colors.limeSoft}
+          onPress={() => router.push('/privacy')}
+        >
+          Privacy Policy
+        </AppText>
+        . OpenRouter API keys stay on your device except for direct calls to OpenRouter.
       </AppText>
     </ScrollView>
   );
