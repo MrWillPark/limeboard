@@ -22,7 +22,11 @@
   "submit": {
     "production": {
       "ios": {
-        "ascAppId": "6805714980"
+        "ascAppId": "6805714980",
+        "appleTeamId": "UZLYMT5D28",
+        "ascApiKeyPath": "./credentials/AuthKey_HD38GZM6FC.p8",
+        "ascApiKeyId": "HD38GZM6FC",
+        "ascApiKeyIssuerId": "f4dd4946-37cb-4ee0-8e32-29e92889cd70"
       }
     }
   }

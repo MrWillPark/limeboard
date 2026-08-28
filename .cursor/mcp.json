@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "app-store-connect": {
+      "command": "npx",
+      "args": ["-y", "@abd3lraouf/app-store-connect-mcp"],
+      "env": {
+        "ASC_KEY": "./credentials/AuthKey_HD38GZM6FC.p8",
+        "ASC_BUNDLE_ID": "app.limeboard.mobile",
+        "ASC_APP_APPLE_ID": "6805714980"
+      }
+    }
+  }
+}

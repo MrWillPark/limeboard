@@ -32,6 +32,10 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env.apple.local
+
+# Apple API keys (AuthKey_*.p8)
+credentials/
 
 # typescript
 *.tsbuildinfo

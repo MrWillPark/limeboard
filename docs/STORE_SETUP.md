@@ -99,7 +99,24 @@ eas submit --platform ios --latest
 # or: npx testflight
 ```
 
-Set once:
+### App Store Connect API key (recommended — no 2FA prompts)
+
+1. Copy `.env.apple.local.example` → `.env.apple.local`
+2. Paste your **Issuer ID** (App Store Connect → Users and Access → Integrations → App Store Connect API)
+3. Key file lives at `credentials/AuthKey_HD38GZM6FC.p8` (gitignored)
+
+```bash
+cp .env.apple.local.example .env.apple.local
+# edit EXPO_ASC_API_KEY_ISSUER_ID=...
+
+# Verify API access
+set -a && source .env.apple.local && set +a
+node scripts/verify-asc-api.mjs
+```
+
+`eas.json` already references the key for `eas submit` and `npx testflight`. EAS resolves `EXPO_ASC_API_KEY_ISSUER_ID` from your shell env when set.
+
+Legacy Apple ID fallback (only if API key is unavailable):
 
 ```bash
 export EXPO_APPLE_ID=you@email.com
