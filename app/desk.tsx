@@ -26,10 +26,6 @@ import {
 import { BURN_RATE_POLL_MS, useBurnRate } from '@/hooks/use-burn-rate';
 import { useDeskLandscapeLock } from '@/hooks/use-desk-landscape-lock';
 import { useOpenRouter } from '@/providers/openrouter-provider';
-import {
-  syncDeskMonitorWidget,
-  syncDeskMonitorWidgetDisconnected,
-} from '@/lib/widgets/sync-desk-monitor-widget';
 
 const POLL_INTERVAL_SEC = BURN_RATE_POLL_MS / 1000;
 
@@ -75,15 +71,6 @@ export default function DeskMonitorScreen() {
     isManagementKey: meta?.isManagementKey,
     liveSpend: liveTodaySpend,
   });
-
-  useEffect(() => {
-    if (!ready) return;
-    if (!isConnected) {
-      syncDeskMonitorWidgetDisconnected();
-      return;
-    }
-    syncDeskMonitorWidget(burnRate.snapshot);
-  }, [ready, isConnected, burnRate.snapshot, keyQuery.dataUpdatedAt, activityQuery.dataUpdatedAt]);
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;

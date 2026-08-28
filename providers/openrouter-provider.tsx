@@ -24,7 +24,6 @@ import {
   syncDeskMonitorWidgetDisconnected,
   syncDeskMonitorWidgetLoading,
 } from '@/lib/widgets/sync-desk-monitor-widget';
-import { bootstrapWidgetLayouts } from '@/lib/widgets/widget-runtime';
 import { useScreenshotPreviewOptional } from '@/providers/screenshot-preview-provider';
 import { useSession } from '@/providers/session-provider';
 
@@ -103,8 +102,6 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     if (!sessionReady) return;
-
-    bootstrapWidgetLayouts();
 
     if (!userId) {
       syncBalanceWidgetDisconnected();

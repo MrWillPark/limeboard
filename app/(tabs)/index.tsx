@@ -49,14 +49,6 @@ import { useBurnRate } from '@/hooks/use-burn-rate';
 import { useEntitlement } from '@/hooks/use-entitlement';
 import { useOpenRouter } from '@/providers/openrouter-provider';
 import { useSession } from '@/providers/session-provider';
-import {
-  syncBalanceWidget,
-  syncBalanceWidgetDisconnected,
-} from '@/lib/widgets/sync-balance-widget';
-import {
-  syncDeskMonitorWidget,
-  syncDeskMonitorWidgetDisconnected,
-} from '@/lib/widgets/sync-desk-monitor-widget';
 
 const FREE_TIMEFRAMES: TimeframeId[] = ['today', '7d'];
 
@@ -113,23 +105,6 @@ export default function CockpitScreen() {
     keysQuery.dataUpdatedAt,
   ]);
 
-  useEffect(() => {
-    if (!ready) return;
-    if (!isConnected) {
-      syncBalanceWidgetDisconnected();
-      syncDeskMonitorWidgetDisconnected();
-      return;
-    }
-    syncBalanceWidget(burn, effectiveTimeframe);
-  }, [
-    ready,
-    isConnected,
-    burn,
-    effectiveTimeframe,
-    keyQuery.dataUpdatedAt,
-    creditsQuery.dataUpdatedAt,
-  ]);
-
   const liveTodaySpend = useMemo(
     () =>
       computeFleetPeriodSpend(
@@ -146,17 +121,6 @@ export default function CockpitScreen() {
     isManagementKey: meta?.isManagementKey,
     liveSpend: liveTodaySpend,
   });
-
-  useEffect(() => {
-    if (!ready || !isConnected) return;
-    syncDeskMonitorWidget(burnRate.snapshot);
-  }, [
-    ready,
-    isConnected,
-    burnRate.snapshot,
-    keyQuery.dataUpdatedAt,
-    activityQuery.dataUpdatedAt,
-  ]);
 
   const spendSeries = useMemo(() => {
     if (effectiveTimeframe === 'today') {

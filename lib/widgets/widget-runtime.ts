@@ -1,6 +1,14 @@
 import { isWidgetSyncAvailable } from '@/lib/widgets/widget-sync-available';
 
 let bootstrapped = false;
+let lastBootstrapError: string | null = null;
+
+export type WidgetPipelineStatus = {
+  available: boolean;
+  appGroup: 'unavailable' | 'ok' | 'missing';
+  bootstrapped: boolean;
+  lastError: string | null;
+};
 
 /** Whether the App Group container is reachable from the main app. */
 export function getWidgetAppGroupStatus(): 'unavailable' | 'ok' | 'missing' {
@@ -14,6 +22,15 @@ export function getWidgetAppGroupStatus(): 'unavailable' | 'ok' | 'missing' {
   }
 }
 
+export function getWidgetPipelineStatus(): WidgetPipelineStatus {
+  return {
+    available: isWidgetSyncAvailable(),
+    appGroup: getWidgetAppGroupStatus(),
+    bootstrapped,
+    lastError: lastBootstrapError,
+  };
+}
+
 function getBalanceWidget() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   return require('@/widgets/BalanceWidget').default;
@@ -24,64 +41,82 @@ function getDeskMonitorWidget() {
   return require('@/widgets/DeskMonitorWidget').default;
 }
 
+function logWidgetIssue(message: string, error?: unknown) {
+  if (__DEV__) {
+    console.warn(`[widgets] ${message}`, error ?? '');
+  }
+}
+
 /**
  * Load widget modules so their layouts are written to the App Group.
- * Without this, home-screen widgets stay blank until Cockpit is opened.
+ * Retries after a prior failure (e.g. transient App Group init).
  */
-export function bootstrapWidgetLayouts(): boolean {
+export function bootstrapWidgetLayouts(force = false): boolean {
   if (!isWidgetSyncAvailable()) return false;
-  if (bootstrapped) return true;
+  if (bootstrapped && !force) return true;
 
   try {
     getBalanceWidget();
     getDeskMonitorWidget();
     bootstrapped = true;
+    lastBootstrapError = null;
 
-    if (getWidgetAppGroupStatus() === 'missing') {
-      console.warn(
-        '[widgets] App Group container unavailable — check entitlements for group.app.limeboard.mobile'
-      );
+    const appGroup = getWidgetAppGroupStatus();
+    if (appGroup === 'missing') {
+      lastBootstrapError =
+        'App Group container unavailable — check entitlements for group.app.limeboard.mobile';
+      logWidgetIssue(lastBootstrapError);
+      return false;
     }
+
+    reloadAllWidgetTimelines();
     return true;
   } catch (error) {
-    console.warn('[widgets] Failed to bootstrap widget layouts', error);
+    bootstrapped = false;
+    lastBootstrapError =
+      error instanceof Error ? error.message : 'Failed to bootstrap widget layouts';
+    logWidgetIssue('Failed to bootstrap widget layouts', error);
     return false;
   }
 }
 
 export function reloadAllWidgetTimelines(): void {
-  if (!isWidgetSyncAvailable() || !bootstrapped) return;
+  if (!isWidgetSyncAvailable()) return;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const ExpoWidgets = require('expo-widgets/build/ExpoWidgets').default;
     ExpoWidgets.reloadAllWidgets?.();
   } catch (error) {
-    console.warn('[widgets] reloadAllWidgets failed', error);
+    logWidgetIssue('reloadAllWidgets failed', error);
   }
 }
 
-export function pushBalanceWidgetSnapshot(props: object): void {
-  if (!isWidgetSyncAvailable()) return;
-  if (!bootstrapWidgetLayouts()) return;
+export function pushBalanceWidgetSnapshot(props: object): boolean {
+  if (!isWidgetSyncAvailable()) return false;
+  if (!bootstrapWidgetLayouts()) return false;
 
   try {
     const widget = getBalanceWidget();
     widget.updateSnapshot(props);
     widget.reload();
+    return true;
   } catch (error) {
-    console.warn('[widgets] Failed to update BalanceWidget', error);
+    logWidgetIssue('Failed to update BalanceWidget', error);
+    return false;
   }
 }
 
-export function pushDeskMonitorWidgetSnapshot(props: object): void {
-  if (!isWidgetSyncAvailable()) return;
-  if (!bootstrapWidgetLayouts()) return;
+export function pushDeskMonitorWidgetSnapshot(props: object): boolean {
+  if (!isWidgetSyncAvailable()) return false;
+  if (!bootstrapWidgetLayouts()) return false;
 
   try {
     const widget = getDeskMonitorWidget();
     widget.updateSnapshot(props);
     widget.reload();
+    return true;
   } catch (error) {
-    console.warn('[widgets] Failed to update DeskMonitorWidget', error);
+    logWidgetIssue('Failed to update DeskMonitorWidget', error);
+    return false;
   }
 }

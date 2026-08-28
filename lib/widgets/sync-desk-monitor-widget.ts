@@ -17,7 +17,7 @@ const DISCONNECTED: DeskMonitorWidgetProps = {
   avgLabel: '—',
   updatedLabel: '—',
   sourceLabel: '—',
-  history: [],
+  historyHeights: [],
 };
 
 function formatUpdatedLabel(lastUpdated: Date | null): string {
@@ -28,10 +28,11 @@ function formatUpdatedLabel(lastUpdated: Date | null): string {
   return `${Math.round(sec / 60)}m ago`;
 }
 
-function normalizeHistory(values: number[]): number[] {
+function historyBarHeights(values: number[], maxHeight: number): number[] {
   if (values.length === 0) return [];
   const max = Math.max(...values, 1);
-  return values.map((v) => v / max);
+  const slice = values.slice(-Math.min(values.length, 24));
+  return slice.map((v) => Math.max(3, Math.round((v / max) * maxHeight)));
 }
 
 const LOADING: DeskMonitorWidgetProps = {
@@ -43,7 +44,7 @@ const LOADING: DeskMonitorWidgetProps = {
   avgLabel: '—',
   updatedLabel: 'Loading',
   sourceLabel: 'OpenRouter',
-  history: [],
+  historyHeights: [],
 };
 
 function pushDeskMonitorSnapshot(props: DeskMonitorWidgetProps) {
@@ -68,6 +69,6 @@ export function syncDeskMonitorWidget(snapshot: BurnRateSnapshot) {
     avgLabel: formatPeakAvg(snapshot.avgPerSecond, snapshot.mode),
     updatedLabel: formatUpdatedLabel(snapshot.lastUpdated),
     sourceLabel: snapshot.sourceLabel,
-    history: normalizeHistory(snapshot.historyPerMinute),
+    historyHeights: historyBarHeights(snapshot.historyPerMinute, 24),
   });
 }

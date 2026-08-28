@@ -11,6 +11,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "app.limeboard.mobile",
       "usesAppleSignIn": true,
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.app.limeboard.mobile"
+        ]
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
