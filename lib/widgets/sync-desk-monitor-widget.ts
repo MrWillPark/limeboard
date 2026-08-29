@@ -4,7 +4,7 @@ import {
   formatRateUnit,
   type BurnRateSnapshot,
 } from '@/lib/analytics/burn-rate';
-import { pushDeskMonitorWidgetSnapshot } from '@/lib/widgets/widget-runtime';
+import { isWidgetSyncAvailable } from '@/lib/widgets/widget-sync-available';
 
 import type { DeskMonitorWidgetProps } from '@/widgets/DeskMonitorWidget';
 
@@ -17,7 +17,7 @@ const DISCONNECTED: DeskMonitorWidgetProps = {
   avgLabel: '—',
   updatedLabel: '—',
   sourceLabel: '—',
-  historyHeights: [],
+  history: [],
 };
 
 function formatUpdatedLabel(lastUpdated: Date | null): string {
@@ -28,35 +28,24 @@ function formatUpdatedLabel(lastUpdated: Date | null): string {
   return `${Math.round(sec / 60)}m ago`;
 }
 
-function historyBarHeights(values: number[], maxHeight: number): number[] {
+function normalizeHistory(values: number[]): number[] {
   if (values.length === 0) return [];
   const max = Math.max(...values, 1);
-  const slice = values.slice(-Math.min(values.length, 24));
-  return slice.map((v) => Math.max(3, Math.round((v / max) * maxHeight)));
+  return values.map((v) => v / max);
 }
 
-const LOADING: DeskMonitorWidgetProps = {
-  connected: true,
-  mode: 'tokens',
-  rateLabel: '…',
-  rateUnit: 'tok/s',
-  peakLabel: '—',
-  avgLabel: '—',
-  updatedLabel: 'Loading',
-  sourceLabel: 'OpenRouter',
-  historyHeights: [],
-};
-
 function pushDeskMonitorSnapshot(props: DeskMonitorWidgetProps) {
-  pushDeskMonitorWidgetSnapshot(props);
+  if (!isWidgetSyncAvailable()) return;
+  try {
+    const DeskMonitorWidget = require('@/widgets/DeskMonitorWidget').default;
+    DeskMonitorWidget.updateSnapshot(props);
+  } catch {
+    // Native widget extension not present in this build.
+  }
 }
 
 export function syncDeskMonitorWidgetDisconnected() {
   pushDeskMonitorSnapshot(DISCONNECTED);
-}
-
-export function syncDeskMonitorWidgetLoading() {
-  pushDeskMonitorSnapshot(LOADING);
 }
 
 export function syncDeskMonitorWidget(snapshot: BurnRateSnapshot) {
@@ -69,6 +58,6 @@ export function syncDeskMonitorWidget(snapshot: BurnRateSnapshot) {
     avgLabel: formatPeakAvg(snapshot.avgPerSecond, snapshot.mode),
     updatedLabel: formatUpdatedLabel(snapshot.lastUpdated),
     sourceLabel: snapshot.sourceLabel,
-    historyHeights: historyBarHeights(snapshot.historyPerMinute, 24),
+    history: normalizeHistory(snapshot.historyPerMinute),
   });
 }

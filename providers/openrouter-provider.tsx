@@ -19,11 +19,8 @@ import {
 } from '@/lib/auth/secure-key';
 import { validateApiKey } from '@/lib/openrouter/client';
 import { isOpenRouterAuthError, isOpenRouterNetworkError } from '@/lib/openrouter/errors';
-import { syncBalanceWidgetDisconnected, syncBalanceWidgetLoading } from '@/lib/widgets/sync-balance-widget';
-import {
-  syncDeskMonitorWidgetDisconnected,
-  syncDeskMonitorWidgetLoading,
-} from '@/lib/widgets/sync-desk-monitor-widget';
+import { syncBalanceWidgetDisconnected } from '@/lib/widgets/sync-balance-widget';
+import { syncDeskMonitorWidgetDisconnected } from '@/lib/widgets/sync-desk-monitor-widget';
 import { useScreenshotPreviewOptional } from '@/providers/screenshot-preview-provider';
 import { useSession } from '@/providers/session-provider';
 
@@ -112,11 +109,7 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
     if (!apiKey) {
       syncBalanceWidgetDisconnected();
       syncDeskMonitorWidgetDisconnected();
-      return;
     }
-
-    syncBalanceWidgetLoading();
-    syncDeskMonitorWidgetLoading();
   }, [sessionReady, ready, userId, apiKey]);
 
   useEffect(() => {

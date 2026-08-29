@@ -1,9 +1,10 @@
-import { HStack, Text, VStack, ZStack } from '@expo/ui/swift-ui';
+import { HStack, Spacer, Text, VStack, ZStack, Rectangle } from '@expo/ui/swift-ui';
 import {
   clipShape,
   containerBackground,
   font,
   foregroundStyle,
+  frame,
   padding,
 } from '@expo/ui/swift-ui/modifiers';
 import { createWidget, type WidgetEnvironment } from 'expo-widgets';
@@ -20,11 +21,13 @@ export type BalanceWidgetProps = {
 const BalanceWidget = (props: BalanceWidgetProps, environment: WidgetEnvironment) => {
   'widget';
 
+  // expo-widgets serializes only this function body for the extension JS runtime.
   const LIME = '#39FF14';
   const LIME_SOFT = '#A3E635';
   const TEXT = '#F2F7F4';
   const MUTED = '#9AADA3';
   const BG = '#0B0E0D';
+  const PANEL = '#141917';
 
   const isFullColor =
     environment.widgetRenderingMode == null ||
@@ -36,24 +39,33 @@ const BalanceWidget = (props: BalanceWidgetProps, environment: WidgetEnvironment
 
   const accent = isFullColor ? LIME : TEXT;
   const soft = isFullColor ? LIME_SOFT : MUTED;
-  const shell = [
-    containerBackground(isFullColor ? BG : 'widget', 'widget'),
-    clipShape('containerRelativeShape'),
-  ];
-  const pad = padding({ all: isSmall ? 12 : 14 });
 
   if (!props.connected) {
     return (
-      <ZStack alignment="center" modifiers={shell}>
-        <VStack alignment="leading" spacing={6} modifiers={[pad]}>
+      <ZStack
+        alignment="center"
+        modifiers={[
+          containerBackground(isFullColor ? BG : 'widget', 'widget'),
+          clipShape('containerRelativeShape'),
+        ]}
+      >
+        <VStack
+          alignment="leading"
+          spacing={6}
+          modifiers={[
+            frame({ maxWidth: Infinity, maxHeight: Infinity, alignment: 'leading' }),
+            padding({ all: 14 }),
+          ]}
+        >
           <Text modifiers={[font({ weight: 'bold', size: 12 }), foregroundStyle(soft)]}>
             LimeBoard
           </Text>
+          <Spacer />
           <Text modifiers={[font({ weight: 'semibold', size: 15 }), foregroundStyle(TEXT)]}>
             Connect a key
           </Text>
           <Text modifiers={[font({ size: 11 }), foregroundStyle(MUTED)]}>
-            Open the app to show balance and burn.
+            Open the app to show balance & burn.
           </Text>
         </VStack>
       </ZStack>
@@ -61,12 +73,40 @@ const BalanceWidget = (props: BalanceWidgetProps, environment: WidgetEnvironment
   }
 
   return (
-    <ZStack alignment="leading" modifiers={shell}>
-      <VStack alignment="leading" spacing={isSmall ? 6 : 8} modifiers={[pad]}>
+    <ZStack
+      alignment="leading"
+      modifiers={[
+        containerBackground(isFullColor ? BG : 'widget', 'widget'),
+        clipShape('containerRelativeShape'),
+      ]}
+    >
+      {isFullColor ? (
+        <Rectangle
+          modifiers={[
+            foregroundStyle({
+              type: 'linearGradient',
+              colors: [BG, PANEL],
+              startPoint: { x: 0.5, y: 0 },
+              endPoint: { x: 0.5, y: 1 },
+            }),
+            frame({ maxWidth: Infinity, maxHeight: Infinity }),
+          ]}
+        />
+      ) : null}
+
+      <VStack
+        alignment="leading"
+        spacing={isSmall ? 4 : 8}
+        modifiers={[
+          frame({ maxWidth: Infinity, maxHeight: Infinity, alignment: 'leading' }),
+          padding({ all: isSmall ? 12 : 14 }),
+        ]}
+      >
         <HStack spacing={8}>
           <Text modifiers={[font({ weight: 'bold', size: 11 }), foregroundStyle(soft)]}>
             LimeBoard
           </Text>
+          <Spacer />
           {!isSmall ? (
             <Text modifiers={[font({ size: 10 }), foregroundStyle(MUTED)]}>
               {props.spendCaption}
@@ -92,6 +132,8 @@ const BalanceWidget = (props: BalanceWidgetProps, environment: WidgetEnvironment
           </Text>
         </VStack>
 
+        <Spacer />
+
         {isSmall ? (
           <VStack alignment="leading" spacing={2}>
             <Text modifiers={[font({ size: 10 }), foregroundStyle(MUTED)]}>
@@ -110,7 +152,7 @@ const BalanceWidget = (props: BalanceWidgetProps, environment: WidgetEnvironment
             </Text>
           </VStack>
         ) : (
-          <HStack spacing={12}>
+          <HStack spacing={12} modifiers={[frame({ maxWidth: Infinity })]}>
             <VStack alignment="leading" spacing={2}>
               <Text
                 modifiers={[font({ weight: 'medium', size: 10 }), foregroundStyle(MUTED)]}

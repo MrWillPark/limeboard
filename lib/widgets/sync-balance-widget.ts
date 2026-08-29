@@ -3,7 +3,7 @@ import {
   type BurnSnapshot,
 } from '@/lib/analytics/burn';
 import { timeframeLabel, type TimeframeId } from '@/lib/analytics/timeframe';
-import { pushBalanceWidgetSnapshot } from '@/lib/widgets/widget-runtime';
+import { isWidgetSyncAvailable } from '@/lib/widgets/widget-sync-available';
 
 import type { BalanceWidgetProps } from '@/widgets/BalanceWidget';
 
@@ -16,25 +16,18 @@ const DISCONNECTED: BalanceWidgetProps = {
   avgDailyLabel: '—',
 };
 
-const LOADING: BalanceWidgetProps = {
-  connected: true,
-  balanceLabel: '…',
-  spendLabel: '—',
-  spendCaption: 'Spend · Today',
-  runwayLabel: '—',
-  avgDailyLabel: '—',
-};
-
 function pushBalanceSnapshot(props: BalanceWidgetProps) {
-  pushBalanceWidgetSnapshot(props);
+  if (!isWidgetSyncAvailable()) return;
+  try {
+    const BalanceWidget = require('@/widgets/BalanceWidget').default;
+    BalanceWidget.updateSnapshot(props);
+  } catch {
+    // Native widget extension not present in this build.
+  }
 }
 
 export function syncBalanceWidgetDisconnected() {
   pushBalanceSnapshot(DISCONNECTED);
-}
-
-export function syncBalanceWidgetLoading() {
-  pushBalanceSnapshot(LOADING);
 }
 
 export function syncBalanceWidget(
