@@ -101,7 +101,7 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
   }, [userId, queryClient]);
 
   useEffect(() => {
-    if (!sessionReady) return;
+    if (!sessionReady || !ready) return;
 
     if (!userId) {
       syncBalanceWidgetDisconnected();
@@ -117,7 +117,7 @@ export function OpenRouterProvider({ children }: PropsWithChildren) {
 
     syncBalanceWidgetLoading();
     syncDeskMonitorWidgetLoading();
-  }, [sessionReady, userId, apiKey]);
+  }, [sessionReady, ready, userId, apiKey]);
 
   useEffect(() => {
     let cancelled = false;

@@ -42,9 +42,7 @@ function getDeskMonitorWidget() {
 }
 
 function logWidgetIssue(message: string, error?: unknown) {
-  if (__DEV__) {
-    console.warn(`[widgets] ${message}`, error ?? '');
-  }
+  console.warn(`[widgets] ${message}`, error ?? '');
 }
 
 /**
@@ -53,22 +51,29 @@ function logWidgetIssue(message: string, error?: unknown) {
  */
 export function bootstrapWidgetLayouts(force = false): boolean {
   if (!isWidgetSyncAvailable()) return false;
-  if (bootstrapped && !force) return true;
+  if (bootstrapped && !force && lastBootstrapError == null) {
+    return getWidgetAppGroupStatus() === 'ok';
+  }
 
   try {
+    if (force) {
+      bootstrapped = false;
+    }
+
     getBalanceWidget();
     getDeskMonitorWidget();
-    bootstrapped = true;
-    lastBootstrapError = null;
 
     const appGroup = getWidgetAppGroupStatus();
-    if (appGroup === 'missing') {
+    if (appGroup !== 'ok') {
+      bootstrapped = false;
       lastBootstrapError =
         'App Group container unavailable — check entitlements for group.app.limeboard.mobile';
       logWidgetIssue(lastBootstrapError);
       return false;
     }
 
+    bootstrapped = true;
+    lastBootstrapError = null;
     reloadAllWidgetTimelines();
     return true;
   } catch (error) {
@@ -98,7 +103,6 @@ export function pushBalanceWidgetSnapshot(props: object): boolean {
   try {
     const widget = getBalanceWidget();
     widget.updateSnapshot(props);
-    widget.reload();
     return true;
   } catch (error) {
     logWidgetIssue('Failed to update BalanceWidget', error);
@@ -113,7 +117,6 @@ export function pushDeskMonitorWidgetSnapshot(props: object): boolean {
   try {
     const widget = getDeskMonitorWidget();
     widget.updateSnapshot(props);
-    widget.reload();
     return true;
   } catch (error) {
     logWidgetIssue('Failed to update DeskMonitorWidget', error);

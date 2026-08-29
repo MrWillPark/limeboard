@@ -89,10 +89,12 @@ export function WidgetSyncBridge() {
 
   useEffect(() => {
     if (!ready || !realIsConnected) return;
+    if (burnRate.isLoading) return;
     syncDeskMonitorWidget(burnRate.snapshot);
   }, [
     ready,
     realIsConnected,
+    burnRate.isLoading,
     burnRate.snapshot,
     keyQuery.dataUpdatedAt,
     activityQuery.dataUpdatedAt,

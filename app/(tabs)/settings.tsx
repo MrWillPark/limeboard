@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import Purchases from 'react-native-purchases';
 
@@ -18,6 +18,11 @@ import {
 } from '@/providers/screenshot-preview-provider';
 import { useSession } from '@/providers/session-provider';
 import { useSubscription } from '@/providers/subscription-provider';
+import {
+  bootstrapWidgetLayouts,
+  getWidgetPipelineStatus,
+  type WidgetPipelineStatus,
+} from '@/lib/widgets/widget-runtime';
 
 const PREVIEW_MODES: { id: ScreenshotPreviewMode; label: string }[] = [
   { id: 'live', label: 'Live' },
@@ -33,6 +38,13 @@ export default function SettingsScreen() {
   const { mode: previewMode, setMode: setPreviewMode } = useScreenshotPreview();
   const proUnlocked = isPro || isAdminAccount;
   const [deleting, setDeleting] = useState(false);
+  const [widgetStatus, setWidgetStatus] = useState<WidgetPipelineStatus | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    bootstrapWidgetLayouts(true);
+    setWidgetStatus(getWidgetPipelineStatus());
+  }, []);
 
   const onDisconnect = () => {
     Alert.alert('Remove API key?', 'The key will be deleted from the device keychain.', [
@@ -227,6 +239,30 @@ export default function SettingsScreen() {
         </AppText>
         <AppButton title="Open Desk Monitor" variant="ghost" onPress={() => router.push('/desk')} />
       </Panel>
+
+      {Platform.OS === 'ios' && widgetStatus ? (
+        <Panel style={{ gap: spacing.sm }}>
+          <AppText variant="title">Home Screen widgets</AppText>
+          <AppText variant="caption">
+            App Group: {widgetStatus.appGroup}
+            {' · '}
+            Bootstrap: {widgetStatus.bootstrapped ? 'ok' : 'failed'}
+          </AppText>
+          {widgetStatus.lastError ? (
+            <AppText variant="caption" color={colors.amber}>
+              {widgetStatus.lastError}
+            </AppText>
+          ) : null}
+          <AppButton
+            title="Refresh widget data"
+            variant="ghost"
+            onPress={() => {
+              bootstrapWidgetLayouts(true);
+              setWidgetStatus(getWidgetPipelineStatus());
+            }}
+          />
+        </Panel>
+      ) : null}
 
       <Panel style={{ gap: spacing.md }}>
         <AppText variant="title">OpenRouter key</AppText>
