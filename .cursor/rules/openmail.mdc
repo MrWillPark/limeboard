@@ -1,0 +1,19 @@
+---
+description: OpenMail inbox for the Limeboard project
+globs:
+alwaysApply: true
+---
+
+# OpenMail (Limeboard)
+
+This project's agent inbox is **hello@limeboard.app** (display name: Team LimeBoard).
+
+Before any `openmail` command, load credentials:
+
+```bash
+set -a && source ~/.cursor/openmail.env && set +a
+export OPENMAIL_INBOX_ID=fffcdc91-20d7-4297-82a0-70605b75b47d
+export OPENMAIL_ADDRESS=hello@limeboard.app
+```
+
+This matches the app's public support email in `lib/config/legal.ts`.
