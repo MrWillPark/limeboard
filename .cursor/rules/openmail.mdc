@@ -4,16 +4,16 @@ globs:
 alwaysApply: true
 ---
 
-# OpenMail (Limeboard)
+# OpenMail (Burnline)
 
-This project's agent inbox is **hello@limeboard.app** (display name: Team LimeBoard).
+This project's agent inbox is **hello@burnline.dev** (display name: Team Burnline).
 
 Before any `openmail` command, load credentials:
 
 ```bash
 set -a && source ~/.cursor/openmail.env && set +a
 export OPENMAIL_INBOX_ID=fffcdc91-20d7-4297-82a0-70605b75b47d
-export OPENMAIL_ADDRESS=hello@limeboard.app
+export OPENMAIL_ADDRESS=hello@burnline.dev
 ```
 
 This matches the app's public support email in `lib/config/legal.ts`.
