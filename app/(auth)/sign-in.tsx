@@ -40,7 +40,7 @@ export default function SignInScreen() {
     >
       <View style={{ gap: spacing.sm }}>
         <AppText variant="title">{mode === 'sign-in' ? 'Sign in' : 'Create account'}</AppText>
-        <AppText>Use the email tied to your LimeBoard subscription.</AppText>
+        <AppText>Use the email tied to your Burnline subscription.</AppText>
         {mode === 'sign-in' ? (
           <AppText variant="caption" color={colors.textSecondary}>
             Google-only accounts: use Continue with Google on the welcome screen. Set a password via

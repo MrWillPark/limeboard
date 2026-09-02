@@ -17,12 +17,12 @@
 1. [Apps](https://appstoreconnect.apple.com/apps) → **+** → New App  
    - Bundle ID: `app.limeboard.mobile`  
    - SKU: `limeboard`  
-2. **Subscriptions** → create subscription group **LimeBoard Pro**  
+2. **Subscriptions** → create subscription group **Burnline Pro**  
 3. Add products:
    - Reference name / Product ID: `limeboard_pro_monthly` (1 month)
    - Reference name / Product ID: `limeboard_pro_annual` (1 year)
 4. Set pricing, localization, review screenshot for each
-5. App Privacy → Privacy Policy URL: `https://limeboard.app/privacy`  
+5. App Privacy → Privacy Policy URL: `https://burnline.dev/privacy`  
    (host the in-app copy on that domain, or temporarily use a public GitHub Pages URL)
 6. App Information → License Agreement: Apple Standard EULA is fine; also link Terms in app
 7. **Apple ID** (App Store Connect app id) is set in `eas.json` → `submit.production.ios.ascAppId` (`6805714980`).
@@ -33,7 +33,7 @@ Paid Apps Agreement + banking/tax must be Active under Business.
 
 ## 2. RevenueCat
 
-1. [app.revenuecat.com](https://app.revenuecat.com) → New project **LimeBoard**
+1. [app.revenuecat.com](https://app.revenuecat.com) → New project **Burnline**
 2. Add iOS app → bundle `app.limeboard.mobile`
 3. Upload App Store Connect API key (In-App Purchase key) for receipt validation
 4. Import / create products with IDs above
@@ -131,7 +131,7 @@ Balance and Desk Monitor widgets use `expo-widgets` + App Group `group.app.limeb
 
 1. First widget-enabled build: EAS registers the widget extension App ID (`app.limeboard.mobile.widgets`) and App Group entitlement.
 2. Rebuild after any `expo-widgets` plugin change in `app.json`.
-3. On device: long-press Home Screen → Add Widget → **LimeBoard Balance** or **Desk Monitor**.
+3. On device: long-press Home Screen → Add Widget → **Burnline Balance** or **Desk Monitor**.
 4. Widget content updates when Cockpit refreshes OpenRouter data (open the app).
 
 **If the build fails with “provisioning profile doesn't support the … App Group”:**
@@ -153,7 +153,7 @@ watchOS is out of scope for v1 — see README for App Store complexity notes.
 App Store Connect needs public URLs. In-app screens live at `/privacy` and `/terms`.
 
 Options:
-- Point `limeboard.app/privacy` and `/terms` at static HTML (see `public/legal/`)
+- Point `burnline.dev/privacy` and `/terms` at static HTML (see `public/legal/`)
 - Or deploy Expo web: `npx expo export -p web` + EAS Hosting
 
 Until the domain is live, use any HTTPS host that serves the same text (GitHub Pages is fine for review).

@@ -23,7 +23,7 @@ export function UpgradePanel({ title, description, compact }: Props) {
     >
       <View style={{ gap: 4 }}>
         <AppText variant="label" color={colors.limeSoft}>
-          LimeBoard Pro
+          Burnline Pro
         </AppText>
         <AppText variant="title">{title}</AppText>
         {!compact ? <AppText>{description}</AppText> : null}

@@ -48,7 +48,7 @@ export function ConnectKeyCard({ onSuccess }: Props) {
             Management API key
           </Text>{' '}
           for activity history and multi-key fleet views. Keys stay in the device
-          keychain — no LimeBoard server.
+          keychain — no Burnline server.
         </Text>
       </View>
 

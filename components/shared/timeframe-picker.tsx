@@ -40,7 +40,7 @@ export function TimeframePicker({ value, onChange, compact, allowed }: Props) {
               <Pressable
                 key={opt.id}
                 accessibilityRole="button"
-                accessibilityLabel={`${opt.label}, LimeBoard Pro`}
+                accessibilityLabel={`${opt.label}, Burnline Pro`}
                 onPress={openPaywall}
                 style={{
                   flex: 1,

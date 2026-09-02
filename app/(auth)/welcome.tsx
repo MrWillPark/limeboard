@@ -91,7 +91,7 @@ export default function WelcomeScreen() {
         }}
       >
         <View style={{ flex: 1, justifyContent: 'center', gap: spacing.lg }}>
-          <AppText variant="display">LimeBoard</AppText>
+          <AppText variant="display">Burnline</AppText>
           <AppText>
             Supabase is not configured. Add EXPO_PUBLIC_SUPABASE_URL and
             EXPO_PUBLIC_SUPABASE_ANON_KEY to enable the login gate.
@@ -116,12 +116,12 @@ export default function WelcomeScreen() {
     >
       <View style={{ gap: spacing.sm }}>
         <AppText variant="label" color={colors.limeSoft}>
-          OpenRouter analytics
+          LLM spend cockpit
         </AppText>
-        <AppText variant="display">LimeBoard</AppText>
+        <AppText variant="display">Burnline</AppText>
         <AppText>
-          Track balance, burn rate, and model spend. Sign in to sync your subscription
-          and access platform-wide rankings — even before you connect a key.
+          Know your burn. Know your runway. Sign in to sync your subscription and
+          browse platform rankings — even before you connect a key. OpenRouter today.
         </AppText>
       </View>
 
@@ -136,7 +136,7 @@ export default function WelcomeScreen() {
               onPress={() => void onApple()}
             />
             <AppText variant="caption" color={colors.textSecondary}>
-              Choose &quot;Share My Email&quot; to link an existing LimeBoard account. Hide My
+              Choose &quot;Share My Email&quot; to link an existing Burnline account. Hide My
               Email creates a separate account.
             </AppText>
           </>

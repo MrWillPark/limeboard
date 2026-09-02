@@ -75,8 +75,8 @@ export default function SettingsScreen() {
 
   const onDeleteAccount = () => {
     Alert.alert(
-      'Delete LimeBoard account?',
-      'This permanently deletes your LimeBoard login. OpenRouter keys on this device are removed. App Store / Play subscriptions must be cancelled separately in your store settings.',
+      'Delete Burnline account?',
+      'This permanently deletes your Burnline login. API keys on this device are removed. App Store / Play subscriptions must be cancelled separately in your store settings.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -88,7 +88,7 @@ export default function SettingsScreen() {
               try {
                 await deleteLimeBoardAccount();
                 await disconnect().catch(() => {});
-                Alert.alert('Account deleted', 'Your LimeBoard account has been removed.');
+                Alert.alert('Account deleted', 'Your Burnline account has been removed.');
               } catch (e) {
                 Alert.alert(
                   'Could not delete account',
@@ -135,7 +135,7 @@ export default function SettingsScreen() {
       ) : null}
 
       <Panel style={{ gap: spacing.md }}>
-        <AppText variant="title">LimeBoard account</AppText>
+        <AppText variant="title">Burnline account</AppText>
         <View style={{ gap: 4 }}>
           <AppText variant="label">Signed in as</AppText>
           <AppText variant="mono" selectable>
@@ -157,7 +157,7 @@ export default function SettingsScreen() {
           {realIsAdminAccount
             ? 'Owner account — all Pro and management features unlocked.'
             : isPro
-              ? 'LimeBoard Pro is active on this account.'
+              ? 'Burnline Pro is active on this account.'
               : 'Free tier — basic stats and 30-day Explore.'}
         </AppText>
         {proUnlocked && !realIsAdminAccount ? (
@@ -253,6 +253,22 @@ export default function SettingsScreen() {
       </Panel>
 
       <Panel style={{ gap: spacing.sm }}>
+        <AppText variant="title">Get the app</AppText>
+        <AppButton
+          title="App Store"
+          variant="ghost"
+          onPress={() => void Linking.openURL(LEGAL.appStoreUrl)}
+        />
+        <AppText
+          variant="caption"
+          color={colors.limeSoft}
+          onPress={() => void Linking.openURL(LEGAL.websiteUrl)}
+        >
+          burnline.dev
+        </AppText>
+      </Panel>
+
+      <Panel style={{ gap: spacing.sm }}>
         <AppText variant="title">Legal</AppText>
         <AppButton title="Privacy Policy" variant="ghost" onPress={() => router.push('/privacy')} />
         <AppButton title="Terms of Use" variant="ghost" onPress={() => router.push('/terms')} />
@@ -271,9 +287,9 @@ export default function SettingsScreen() {
       </Panel>
 
       <Panel style={{ gap: spacing.sm }}>
-        <AppText variant="title">About LimeBoard</AppText>
+        <AppText variant="title">About Burnline</AppText>
         <AppText>
-          Mobile OpenRouter usage analytics. Your API key stays in the device keychain;
+          Mobile LLM API spend cockpit. Your API keys stay in the device keychain;
           platform rankings are cached via Supabase for no-key browsing.
         </AppText>
         <AppText variant="caption">Palette · Electric lime #39FF14 on #0B0E0D</AppText>

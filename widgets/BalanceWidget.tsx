@@ -58,7 +58,7 @@ const BalanceWidget = (props: BalanceWidgetProps, environment: WidgetEnvironment
           ]}
         >
           <Text modifiers={[font({ weight: 'bold', size: 12 }), foregroundStyle(soft)]}>
-            LimeBoard
+            Burnline
           </Text>
           <Spacer />
           <Text modifiers={[font({ weight: 'semibold', size: 15 }), foregroundStyle(TEXT)]}>
@@ -104,7 +104,7 @@ const BalanceWidget = (props: BalanceWidgetProps, environment: WidgetEnvironment
       >
         <HStack spacing={8}>
           <Text modifiers={[font({ weight: 'bold', size: 11 }), foregroundStyle(soft)]}>
-            LimeBoard
+            Burnline
           </Text>
           <Spacer />
           {!isSmall ? (
@@ -203,7 +203,7 @@ const BalanceWidget = (props: BalanceWidgetProps, environment: WidgetEnvironment
 
         {isLarge ? (
           <Text modifiers={[font({ size: 11 }), foregroundStyle(MUTED)]}>
-            OpenRouter credits · updates when you open LimeBoard
+            OpenRouter credits · updates when you open Burnline
           </Text>
         ) : null}
       </VStack>

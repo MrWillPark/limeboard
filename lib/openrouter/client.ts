@@ -45,8 +45,8 @@ async function request<T>({
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://limeboard.app',
-      'X-Title': 'LimeBoard',
+      'HTTP-Referer': 'https://burnline.dev',
+      'X-Title': 'Burnline',
     },
     body: body != null ? JSON.stringify(body) : undefined,
   });

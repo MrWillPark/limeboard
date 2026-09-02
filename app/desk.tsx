@@ -75,7 +75,7 @@ export default function DeskMonitorScreen() {
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const prev = document.title;
-    document.title = 'LimeBoard · Desk Monitor';
+    document.title = 'Burnline · Desk Monitor';
     return () => {
       document.title = prev;
     };

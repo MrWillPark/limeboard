@@ -45,7 +45,7 @@ export default function ResetPasswordScreen() {
     >
       <View style={{ gap: spacing.sm }}>
         <AppText variant="title">Choose a new password</AppText>
-        <AppText>This secures email sign-in for your LimeBoard account.</AppText>
+        <AppText>This secures email sign-in for your Burnline account.</AppText>
       </View>
 
       <Panel style={{ gap: spacing.md }}>

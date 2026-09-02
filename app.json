@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "LimeBoard",
+    "name": "Burnline",
     "slug": "limeboard",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -51,8 +51,8 @@
           "widgets": [
             {
               "name": "BalanceWidget",
-              "displayName": "LimeBoard Balance",
-              "description": "OpenRouter credit balance, spend, and runway at a glance.",
+              "displayName": "Burnline Balance",
+              "description": "LLM API credit balance, burn, and runway at a glance.",
               "contentMarginsDisabled": true,
               "supportedFamilies": [
                 "systemSmall",

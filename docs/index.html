@@ -3,37 +3,125 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LimeBoard</title>
-  <meta name="description" content="Mobile OpenRouter usage analytics — balance, burn rate, and runway." />
+  <title>Burnline — LLM API spend cockpit for iOS</title>
+  <meta name="description" content="Know your burn. Know your runway. Live LLM API spend on your phone — burn speedometer, model breakdown, and runway-to-zero. Starts with OpenRouter." />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://burnline.dev/" />
+  <meta property="og:title" content="Burnline — LLM API spend cockpit" />
+  <meta property="og:description" content="Know your burn. Know your runway. Live burn speedometer, model spend, and runway-to-zero on your phone." />
+  <meta property="og:site_name" content="Burnline" />
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Burnline — LLM API spend cockpit" />
+  <meta name="twitter:description" content="Know your burn. Know your runway. Live burn speedometer, model spend, and runway-to-zero on your phone." />
+
   <style>
     :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       max-width: 36rem;
       margin: 0 auto;
-      padding: 3rem 1.25rem;
-      line-height: 1.5;
+      padding: 3.5rem 1.25rem 2.5rem;
+      line-height: 1.55;
       background: #0B0E0D;
       color: #F2F7F4;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
-    h1 { font-size: 2.25rem; margin: 0 0 0.5rem; letter-spacing: -0.02em; }
-    .brand { color: #A3E635; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-    p { color: #9AADA3; margin: 0 0 1.25rem; }
-    a { color: #A3E635; }
-    nav { display: flex; gap: 1.25rem; margin-top: 2rem; font-size: 0.95rem; }
+    main { flex: 1; }
+    .brand {
+      color: #39FF14;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 0 0 1.25rem;
+    }
+    h1 {
+      font-size: 2.1rem;
+      font-weight: 700;
+      line-height: 1.15;
+      margin: 0 0 0.75rem;
+      letter-spacing: -0.025em;
+    }
+    .subhead {
+      color: #9AADA3;
+      font-size: 1.1rem;
+      margin: 0 0 0.5rem;
+    }
+    .wedge {
+      color: #6B7F72;
+      font-size: 0.95rem;
+      margin: 0 0 2rem;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 2.25rem;
+    }
+    li {
+      position: relative;
+      padding-left: 1.35rem;
+      margin-bottom: 0.85rem;
+      color: #C5D4C8;
+    }
+    li::before {
+      content: "▸";
+      position: absolute;
+      left: 0;
+      color: #39FF14;
+    }
+    .cta {
+      display: inline-block;
+      background: #39FF14;
+      color: #0B0E0D;
+      font-weight: 600;
+      font-size: 1rem;
+      text-decoration: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      transition: opacity 0.15s;
+    }
+    .cta:hover { opacity: 0.88; }
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #1A221E;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 1.5rem;
+      font-size: 0.9rem;
+    }
+    footer a {
+      color: #9AADA3;
+      text-decoration: none;
+    }
+    footer a:hover { color: #39FF14; }
   </style>
 </head>
 <body>
-  <p class="brand">OpenRouter analytics</p>
-  <h1>LimeBoard</h1>
-  <p>
-    Track credit balance, burn rate, and runway for your OpenRouter usage —
-    available on the App Store.
-  </p>
-  <p>Support: <a href="mailto:hello@limeboard.app">hello@limeboard.app</a></p>
-  <nav>
+  <main>
+    <p class="brand">Burnline</p>
+    <h1>Know your burn. Know your runway.</h1>
+    <p class="subhead">Your mobile LLM spend cockpit — live burn, balance, and model breakdown.</p>
+    <p class="wedge">OpenRouter today. More providers coming.</p>
+
+    <ul>
+      <li><strong>Burn speedometer &amp; runway</strong> — see how fast credits drain and when you hit zero.</li>
+      <li><strong>Model spend breakdown</strong> — which models eat your budget, with Desk Monitor for a second screen.</li>
+      <li><strong>Platform Pulse</strong> — browse OpenRouter ecosystem rankings, no API key required.</li>
+    </ul>
+
+    <a class="cta" href="https://apps.apple.com/app/id6805714980">Download on the App Store</a>
+  </main>
+
+  <footer>
     <a href="/privacy/">Privacy</a>
     <a href="/terms/">Terms</a>
-  </nav>
+    <a href="mailto:hello@burnline.dev">Support</a>
+  </footer>
 </body>
 </html>

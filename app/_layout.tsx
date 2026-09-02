@@ -80,7 +80,7 @@ export default function RootLayout() {
               name="paywall"
               options={{
                 presentation: 'modal',
-                title: 'LimeBoard Pro',
+                title: 'Burnline Pro',
               }}
             />
             <Stack.Screen

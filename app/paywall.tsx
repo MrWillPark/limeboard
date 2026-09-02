@@ -21,12 +21,12 @@ const PRO_FEATURES = [
 
 function packageLabel(pkg: PurchasesPackage): string {
   if (pkg.product.identifier === STORE_PRODUCTS.annual || pkg.packageType === 'ANNUAL') {
-    return 'LimeBoard Pro — Annual';
+    return 'Burnline Pro — Annual';
   }
   if (pkg.product.identifier === STORE_PRODUCTS.monthly || pkg.packageType === 'MONTHLY') {
-    return 'LimeBoard Pro — Monthly';
+    return 'Burnline Pro — Monthly';
   }
-  return pkg.product.title || 'LimeBoard Pro';
+  return pkg.product.title || 'Burnline Pro';
 }
 
 function packagePeriod(pkg: PurchasesPackage): string {
@@ -76,8 +76,8 @@ export default function PaywallScreen() {
       Alert.alert(
         restored ? 'Purchases restored' : 'No active subscription',
         restored
-          ? 'Your LimeBoard Pro subscription is active on this account.'
-          : 'No active LimeBoard Pro subscription was found for this Apple ID.'
+          ? 'Your Burnline Pro subscription is active on this account.'
+          : 'No active Burnline Pro subscription was found for this Apple ID.'
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Restore failed');
@@ -90,7 +90,7 @@ export default function PaywallScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'LimeBoard Pro',
+          title: 'Burnline Pro',
           presentation: 'modal',
         }}
       />
@@ -105,7 +105,7 @@ export default function PaywallScreen() {
           </AppText>
           <AppText variant="title">Unlock the full cockpit</AppText>
           <AppText>
-            Pro opens every chart and filter LimeBoard can render. A Management API key
+            Pro opens every chart and filter Burnline can render. A Management API key
             still unlocks the deepest OpenRouter data.
           </AppText>
         </Panel>

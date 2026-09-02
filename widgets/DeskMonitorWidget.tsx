@@ -78,7 +78,7 @@ const DeskMonitorWidget = (props: DeskMonitorWidgetProps, environment: WidgetEnv
             Connect a key
           </Text>
           <Text modifiers={[font({ size: 11 }), foregroundStyle(MUTED)]}>
-            Open LimeBoard to show live burn on your desk.
+            Open Burnline to show live burn on your desk.
           </Text>
         </VStack>
       </ZStack>
@@ -220,7 +220,7 @@ const DeskMonitorWidget = (props: DeskMonitorWidgetProps, environment: WidgetEnv
 
         {isLarge ? (
           <Text modifiers={[font({ size: 11 }), foregroundStyle(MUTED)]}>
-            {props.sourceLabel} · updates when you open LimeBoard
+            {props.sourceLabel} · updates when you open Burnline
           </Text>
         ) : isSmall ? (
           <Text modifiers={[font({ size: 9 }), foregroundStyle(MUTED)]}>

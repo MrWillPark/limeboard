@@ -37,7 +37,7 @@ export default function ForgotPasswordScreen() {
       <View style={{ gap: spacing.sm }}>
         <AppText variant="title">Reset password</AppText>
         <AppText>
-          We&apos;ll email a link that opens LimeBoard so you can choose a new password.
+          We&apos;ll email a link that opens Burnline so you can choose a new password.
         </AppText>
       </View>
 

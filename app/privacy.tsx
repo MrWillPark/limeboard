@@ -17,9 +17,9 @@ export default function PrivacyScreen() {
       >
         <Panel style={{ gap: spacing.md }}>
           <AppText variant="title">Privacy Policy</AppText>
-          <AppText variant="caption">Last updated: March 26, 2026</AppText>
+          <AppText variant="caption">Last updated: September 1, 2026</AppText>
           <AppText>
-            LimeBoard (“we”) provides OpenRouter usage analytics. This policy explains what
+            Burnline (“we”) provides LLM API spend analytics. This policy explains what
             data we collect and how it is used.
           </AppText>
           <Section title="Account data">
@@ -27,13 +27,13 @@ export default function PrivacyScreen() {
             IDs) via Supabase Auth so we can maintain your session and subscription
             entitlement.
           </Section>
-          <Section title="OpenRouter API keys">
-            API keys you paste into LimeBoard are stored only on your device (Secure Store /
-            keychain). They are sent directly to OpenRouter to fetch your usage data and are
-            not uploaded to LimeBoard servers.
+          <Section title="API keys">
+            API keys you paste into Burnline are stored only on your device (Secure Store /
+            keychain). They are sent directly to the provider (e.g. OpenRouter) to fetch your
+            usage data and are not uploaded to Burnline servers.
           </Section>
           <Section title="Platform rankings">
-            LimeBoard caches public OpenRouter ecosystem rankings on our servers so signed-in
+            Burnline caches public OpenRouter ecosystem rankings on our servers so signed-in
             users can browse platform-wide stats without connecting a personal key.
           </Section>
           <Section title="Purchases">
@@ -45,7 +45,7 @@ export default function PrivacyScreen() {
             cross-app tracking SDKs.
           </Section>
           <Section title="Deletion">
-            You can delete your LimeBoard account in Settings → Delete account. This removes
+            You can delete your Burnline account in Settings → Delete account. This removes
             your auth user from our systems. Manage or cancel App Store subscriptions
             separately in your Apple ID settings.
           </Section>

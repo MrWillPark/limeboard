@@ -23,11 +23,11 @@ const REVIEW_SCREENSHOT = resolve(
 const SUBSCRIPTION_COPY = {
   monthly: {
     productId: 'limeboard_pro_monthly',
-    name: 'LimeBoard Pro Monthly',
+    name: 'Burnline Pro Monthly',
   },
   annual: {
     productId: 'limeboard_pro_annual',
-    name: 'LimeBoard Pro Annual',
+    name: 'Burnline Pro Annual',
   },
 };
 

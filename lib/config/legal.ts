@@ -1,8 +1,10 @@
 /** Public legal / support URLs used in Settings, Paywall, and App Store metadata. */
 export const LEGAL = {
-  privacyUrl: 'https://limeboard.app/privacy',
-  termsUrl: 'https://limeboard.app/terms',
+  websiteUrl: 'https://burnline.dev',
+  appStoreUrl: 'https://apps.apple.com/app/id6805714980',
+  privacyUrl: 'https://burnline.dev/privacy',
+  termsUrl: 'https://burnline.dev/terms',
   /** EULA — Apple requires a Terms / EULA link with auto-renewable subscriptions */
   eulaUrl: 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
-  supportEmail: 'hello@limeboard.app',
+  supportEmail: 'hello@burnline.dev',
 } as const;
