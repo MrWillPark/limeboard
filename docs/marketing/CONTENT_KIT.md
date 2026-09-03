@@ -1,6 +1,19 @@
 # Burnline content kit
 
-Draft-only. Do not post until an X account is claimed and Composio Twitter auth is connected.
+Draft-only. Do not post until Composio Twitter auth is connected and each post is approved.
+
+## X connection setup (one-time)
+
+Composio does not provide managed Twitter credentials — you need your own X Developer app:
+
+1. Go to [console.x.com](https://console.x.com/) (logged in as `@getburnline`)
+2. Create an app → enable **OAuth 2.0** (Web App type)
+3. Set redirect URI: `https://backend.composio.dev/api/v1/auth-apps/add`
+4. Copy Client ID, Client Secret, and Bearer Token
+5. In Composio: [Set up Twitter auth](https://dashboard.composio.dev/~/org/connect/apps/twitter?open=true) → toggle **Use your own developer credentials** → paste credentials → Create
+6. Tell me when done — I'll run the OAuth link to connect `@getburnline`
+
+Guide: [Composio Twitter auth docs](https://composio.dev/auth/twitter)
 
 ## Alignment check (competitive research)
 
@@ -19,12 +32,10 @@ ASC store name: **Burnline Cockpit** (plain "Burnline" taken). Brand on site/in-
 
 ## X / Twitter status
 
-**Not secured.**
+**Connected:** `@getburnline` via Composio (account active)
 
-- No Composio Twitter connection (auth config required: [Set up twitter](https://dashboard.composio.dev/~/org/connect/apps/twitter?open=true))
-- Handle `@burnline` is not confirmed claimed for this product; a country band uses Burnline on IG/FB (`@burnlineband`) — check `@burnline`, `@burnlinedev`, `@getburnline` manually on X before creating
-
-**Before posting:** claim handle → connect Composio → approve each post.
+- Profile not yet configured via API; drafts below are ready
+- **Before posting:** approve each post
 
 ---
 
@@ -33,7 +44,7 @@ ASC store name: **Burnline Cockpit** (plain "Burnline" taken). Brand on site/in-
 | Field | Copy |
 |---|---|
 | **Display name** | Burnline |
-| **Handle** | Prefer `@burnline` / `@burnlinedev` / `@getburnline` |
+| **Handle** | `@getburnline` |
 | **Bio** | Know your burn. Know your runway. Mobile LLM spend cockpit — OpenRouter today. |
 | **Location** | — |
 | **Website** | https://burnline.dev |
