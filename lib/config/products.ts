@@ -3,8 +3,8 @@
  * Must match App Store Connect, Play Console, and RevenueCat product IDs exactly.
  */
 export const STORE_PRODUCTS = {
-  monthly: 'limeboard_pro_monthly',
-  annual: 'limeboard_pro_annual',
+  monthly: 'pro_monthly',
+  annual: 'pro_annual',
 } as const;
 
 /** RevenueCat entitlement identifier */

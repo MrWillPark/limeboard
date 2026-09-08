@@ -22,11 +22,11 @@ const REVIEW_SCREENSHOT = resolve(
 
 const SUBSCRIPTION_COPY = {
   monthly: {
-    productId: 'limeboard_pro_monthly',
+    productId: 'pro_monthly',
     name: 'Burnline Pro Monthly',
   },
   annual: {
-    productId: 'limeboard_pro_annual',
+    productId: 'pro_annual',
     name: 'Burnline Pro Annual',
   },
 };
@@ -204,12 +204,25 @@ async function main() {
     throw new Error(`Review screenshot not found: ${REVIEW_SCREENSHOT}`);
   }
 
-  const groups = await api('GET', `/apps/${APP_ID}/subscriptionGroups`);
-  const groupId = groups.data[0]?.id;
+  const groups = await api('GET', `/apps/${APP_ID}/subscriptionGroups?include=subscriptions`);
+  const group =
+    groups.data?.find((g) => g.attributes.referenceName === 'Burnline Pro') ??
+    groups.data?.[0];
+  const groupId = group?.id;
   if (!groupId) throw new Error('No subscription group found');
+  console.log(`Using group: ${group.attributes.referenceName} (${groupId})`);
 
-  const subs = await api('GET', `/subscriptionGroups/${groupId}/subscriptions`);
-  const byProduct = Object.fromEntries(subs.data.map((s) => [s.attributes.productId, s]));
+  // Prefer included subscriptions for this group; fall back to related endpoint.
+  let subsData = (groups.included || []).filter(
+    (r) =>
+      r.type === 'subscriptions' &&
+      group.relationships?.subscriptions?.data?.some((d) => d.id === r.id)
+  );
+  if (!subsData.length) {
+    const subs = await api('GET', `/subscriptionGroups/${groupId}/subscriptions`);
+    subsData = subs.data || [];
+  }
+  const byProduct = Object.fromEntries(subsData.map((s) => [s.attributes.productId, s]));
 
   for (const copy of Object.values(SUBSCRIPTION_COPY)) {
     const sub = byProduct[copy.productId];

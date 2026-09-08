@@ -4,8 +4,8 @@
 
 | ID | Type |
 |----|------|
-| `limeboard_pro_monthly` | Auto-renewable subscription |
-| `limeboard_pro_annual` | Auto-renewable subscription |
+| `pro_monthly` | Auto-renewable subscription (Burnline Pro) |
+| `pro_annual` | Auto-renewable subscription (Burnline Pro) |
 | Entitlement | `pro` |
 | Offering | `default` (monthly + annual packages) |
 | Bundle ID | `app.limeboard.mobile` |
@@ -17,10 +17,10 @@
 1. [Apps](https://appstoreconnect.apple.com/apps) → **+** → New App  
    - Bundle ID: `app.limeboard.mobile`  
    - SKU: `limeboard`  
-2. **Subscriptions** → create subscription group **Burnline Pro**  
-3. Add products:
-   - Reference name / Product ID: `limeboard_pro_monthly` (1 month)
-   - Reference name / Product ID: `limeboard_pro_annual` (1 year)
+2. **Subscriptions** → subscription group **Burnline Pro** (not the older LimeBoard Pro group)  
+3. Products:
+   - Reference name / Product ID: `pro_monthly` (1 month)
+   - Reference name / Product ID: `pro_annual` (1 year)
 4. Set pricing, localization, review screenshot for each
 5. App Privacy → Privacy Policy URL: `https://burnline.dev/privacy`  
    (host the in-app copy on that domain, or temporarily use a public GitHub Pages URL)

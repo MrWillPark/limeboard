@@ -118,7 +118,7 @@ echo "    Schedule daily in Dashboard → Edge Functions → sync-rankings → C
 echo ""
 
 echo "==> Step 8: RevenueCat (after EAS dev client build)"
-echo "    Create entitlement 'pro', products limeboard_pro_monthly / limeboard_pro_annual"
+echo "    Create entitlement 'pro', products pro_monthly / pro_annual (Burnline Pro)"
 echo "    Add keys to .env.local"
 echo ""
 
