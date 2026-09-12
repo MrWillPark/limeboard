@@ -8,28 +8,45 @@ Do **not** upload into the **6.5" Display** slot — that rejects 1320×2868 and
 
 ### Use these files (recommended)
 
-**With marketing overlays:** `iphone-6.9-1290-overlaid/`
+**Framed marketing set (BURNLINE):** `iphone-6.9-1290-overlaid/`
 
-| File | Size |
-|------|------|
-| `01-cockpit-balance.png` | **1290 × 2796** |
-| `02-cockpit-burn-trend.png` | **1290 × 2796** |
-| `03-platform-pulse.png` | **1290 × 2796** |
-| `04-explore.png` | **1290 × 2796** |
+Captions sit in a top band above a device frame — UI is never covered. Phone frames reserve a status-bar / Dynamic Island safe area so app chrome never collides with the cutout.
 
-Plain (no text): `iphone-6.9-1290/`
+| File | Size | Shot |
+|------|------|------|
+| `01-cockpit-balance.png` | **1290 × 2796** | Burn + runway hero |
+| `02-cockpit-spend-models.png` | **1290 × 2796** | Spend trend / models (scrolled) |
+| `03-platform-pulse.png` | **1290 × 2796** | Key fleet + Platform Pulse |
+| `04-explore.png` | **1290 × 2796** | Model spend explore |
+| `05-keys.png` | **1290 × 2796** | Keys / fleet totals |
+| `06-desk-monitor.png` | **1290 × 2796** | Desk Monitor (framed landscape) |
 
-Alternate sizes (also valid for 6.9"):
-- `iphone-6.9-overlaid/` — 1320 × 2868
-- `iphone-6.9-overlaid-wordmark-scrim/` — 1320 × 2868 + wordmark plate
+Plain UI sources (no frame): `iphone-6.9-1290/`
+
+Alternate sizes:
+- `iphone-6.9-overlaid/` — 1320 × 2868 (scaled from framed set)
+- `iphone-6.9-overlaid-wordmark-scrim/` — same as above (kept for legacy paths)
+- `desk-monitor-overlaid/` — landscape social asset (caption left, device right)
+
+## Regenerate
+
+```bash
+.venv-img/bin/python scripts/generate-store-screenshots.py
+```
+
+Requires Pillow in `.venv-img` and Expo Google fonts under `node_modules/@expo-google-fonts/`.
+
+Design rules (locked):
+- Brand wordmark **BURNLINE** only (never LIMEBOARD)
+- Caption zone above device — no scrim over UI
+- Ultra-dark canvas `#080A09`, lime `#39FF14`, DM Sans + JetBrains Mono
+- Full native captures inside the device frame (status bar, screen titles, home indicator intact — no chrome stripping)
 
 ## iPad (required — app supports tablet)
 
-LimeBoard has `supportsTablet: true`. You also need **13" Display** iPad screenshots:
+Burnline has `supportsTablet: true`. You also need **13" Display** iPad screenshots:
 
 - **2064 × 2752** or **2048 × 2732** (portrait)
-
-Capture on iPad simulator or device, or ASC may accept scaled iPhone shots only for iPhone slots — iPad is a separate upload section.
 
 ## If you still see "dimensions are incorrect"
 
@@ -37,3 +54,7 @@ Capture on iPad simulator or device, or ASC may accept scaled iPhone shots only 
 2. Use `iphone-6.9-1290-overlaid/` (exact native pixels).
 3. Ensure files are `.png` or `.jpg` with **no transparency**.
 4. Don't upload via Preview "Export" resize — use these files as-is.
+
+## ASC version note
+
+Upload into **1.0.1** (or the current prepare-for-submission version). Live 1.0 listing fields were locked.

@@ -3,6 +3,7 @@ import {
   type BurnSnapshot,
 } from '@/lib/analytics/burn';
 import { timeframeLabel, type TimeframeId } from '@/lib/analytics/timeframe';
+import { syncLiveBurnActivity } from '@/lib/live-activity/sync-live-burn';
 import { isWidgetSyncAvailable } from '@/lib/widgets/widget-sync-available';
 
 import type { BalanceWidgetProps } from '@/widgets/BalanceWidget';
@@ -28,11 +29,18 @@ function pushBalanceSnapshot(props: BalanceWidgetProps) {
 
 export function syncBalanceWidgetDisconnected() {
   pushBalanceSnapshot(DISCONNECTED);
+  syncLiveBurnActivity({
+    balanceLabel: '—',
+    burnPerSecondLabel: '—',
+    runwayLabel: '—',
+    updatedAt: Date.now(),
+  });
 }
 
 export function syncBalanceWidget(
   burn: BurnSnapshot,
-  timeframe: TimeframeId
+  timeframe: TimeframeId,
+  burnPerSecondLabel?: string
 ) {
   pushBalanceSnapshot({
     connected: true,
@@ -41,5 +49,11 @@ export function syncBalanceWidget(
     spendCaption: `Spend · ${timeframeLabel(timeframe)}`,
     runwayLabel: burn.runwayLabel || '—',
     avgDailyLabel: formatUsd(burn.avgDailySpend),
+  });
+  syncLiveBurnActivity({
+    balanceLabel: formatUsd(burn.accountBalance),
+    burnPerSecondLabel: burnPerSecondLabel ?? '—',
+    runwayLabel: burn.runwayLabel || '—',
+    updatedAt: Date.now(),
   });
 }

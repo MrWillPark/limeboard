@@ -17,6 +17,7 @@ import { AppText } from '@/components/ui/app-text';
 import { colors, spacing } from '@/constants/theme';
 import { computeBurn } from '@/lib/analytics/burn';
 import { computeFleetPeriodSpend } from '@/lib/analytics/timeframe';
+import { markChecklistStep } from '@/lib/onboarding/cockpit-checklist';
 import {
   useActivity,
   useCredits,
@@ -71,6 +72,10 @@ export default function DeskMonitorScreen() {
     isManagementKey: meta?.isManagementKey,
     liveSpend: liveTodaySpend,
   });
+
+  useEffect(() => {
+    void markChecklistStep('desk');
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;

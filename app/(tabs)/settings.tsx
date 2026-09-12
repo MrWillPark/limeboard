@@ -158,7 +158,7 @@ export default function SettingsScreen() {
             ? 'Owner account — all Pro and management features unlocked.'
             : isPro
               ? 'Burnline Pro is active on this account.'
-              : 'Free tier — basic stats and 30-day Explore.'}
+              : 'Free forever — balance, burn, and runway. Pro unlocks charts and fleet.'}
         </AppText>
         {proUnlocked && !realIsAdminAccount ? (
           <AppButton

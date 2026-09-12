@@ -19,6 +19,13 @@ const PRO_FEATURES = [
   'Extended timeframes and chart types',
 ];
 
+const FREE_FEATURES = [
+  'Live burn speedometer & runway-to-zero',
+  'Account balance + Desk Monitor',
+  'Platform Pulse (no key required)',
+  'Home Screen widgets',
+];
+
 function packageLabel(pkg: PurchasesPackage): string {
   if (pkg.product.identifier === STORE_PRODUCTS.annual || pkg.packageType === 'ANNUAL') {
     return 'Burnline Pro — Annual';
@@ -105,12 +112,26 @@ export default function PaywallScreen() {
           </AppText>
           <AppText variant="title">Unlock the full cockpit</AppText>
           <AppText>
-            Pro opens every chart and filter Burnline can render. A Management API key
-            still unlocks the deepest OpenRouter data.
+            Burn, runway, and Desk Monitor stay free. Pro opens deeper charts, Explore, and
+            fleet analytics. A Management API key still unlocks the richest OpenRouter data.
           </AppText>
         </Panel>
 
         <Panel style={{ gap: spacing.sm }}>
+          <AppText variant="label" color={colors.limeSoft}>
+            Free forever
+          </AppText>
+          {FREE_FEATURES.map((line) => (
+            <AppText key={line} variant="caption">
+              • {line}
+            </AppText>
+          ))}
+        </Panel>
+
+        <Panel style={{ gap: spacing.sm }}>
+          <AppText variant="label" color={colors.limeSoft}>
+            Pro
+          </AppText>
           {PRO_FEATURES.map((line) => (
             <AppText key={line} variant="caption">
               • {line}

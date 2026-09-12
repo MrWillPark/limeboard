@@ -43,11 +43,12 @@ export function ConnectKeyCard({ onSuccess }: Props) {
             color: colors.textSecondary,
           }}
         >
-          Paste a read-friendly API key. Prefer a{' '}
+          Paste a read-friendly API key. A session key is enough for balance, burn, and
+          runway. Prefer a{' '}
           <Text style={{ color: colors.limeSoft, fontFamily: fonts.sansMedium }}>
             Management API key
           </Text>{' '}
-          for activity history and multi-key fleet views. Keys stay in the device
+          for model breakdowns and multi-key fleet views. Keys stay in the device
           keychain — no Burnline server.
         </Text>
       </View>

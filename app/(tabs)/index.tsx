@@ -10,6 +10,7 @@ import { Link, router } from 'expo-router';
 
 import { BalanceHero } from '@/components/cockpit/balance-hero';
 import { BurnGauge } from '@/components/cockpit/burn-gauge';
+import { CockpitChecklist } from '@/components/cockpit/cockpit-checklist';
 import {
   FleetSnapshotPanel,
   SessionKeyPanel,
@@ -47,6 +48,7 @@ import {
 } from '@/hooks/use-openrouter';
 import { useBurnRate } from '@/hooks/use-burn-rate';
 import { useEntitlement } from '@/hooks/use-entitlement';
+import { useVelocityAnomaly } from '@/hooks/use-velocity-anomaly';
 import { useOpenRouter } from '@/providers/openrouter-provider';
 import { useSession } from '@/providers/session-provider';
 
@@ -121,6 +123,17 @@ export default function CockpitScreen() {
     isManagementKey: meta?.isManagementKey,
     liveSpend: liveTodaySpend,
   });
+
+  const { activeAlert, dismissAlert } = useVelocityAnomaly(
+    burnRate.snapshot.currentPerSecond,
+    isConnected
+  );
+
+  const hasRunway =
+    isConnected &&
+    Boolean(burn.runwayLabel) &&
+    burn.runwayLabel !== '—' &&
+    !burn.runwayLabel.includes('Connect key');
 
   const spendSeries = useMemo(() => {
     if (effectiveTimeframe === 'today') {
@@ -197,6 +210,7 @@ export default function CockpitScreen() {
     >
       {!isConnected ? (
         <>
+          <CockpitChecklist isConnected={false} hasRunway={false} />
           {keyRejectedMessage ? (
             <Panel style={{ gap: spacing.sm }}>
               <AppText color={colors.amber}>{keyRejectedMessage}</AppText>
@@ -216,14 +230,28 @@ export default function CockpitScreen() {
             </AppText>
             <AppText variant="title">Hi {displayName}</AppText>
             <AppText>
-              Connect an OpenRouter key to unlock personal balance, burn rate, and runway —
-              the same instrumentation you just saw for the whole ecosystem.
+              Connect an OpenRouter key for personal balance, live burn, and runway —
+              free forever. Charts and fleet analytics unlock with Pro.
             </AppText>
             <AppButton title="Connect OpenRouter" onPress={() => router.push('/connect')} />
           </Panel>
         </>
       ) : (
         <>
+          <CockpitChecklist isConnected hasRunway={hasRunway} />
+          {activeAlert?.reason ? (
+            <Panel accent style={{ gap: spacing.sm }}>
+              <AppText variant="label" color={colors.amber}>
+                Burn spike
+              </AppText>
+              <AppText>{activeAlert.reason}</AppText>
+              <AppText variant="caption" color={colors.textSecondary}>
+                Velocity is elevated vs your recent baseline. Check agents or kill runaway
+                loops before credits hit zero.
+              </AppText>
+              <AppButton title="Dismiss" variant="ghost" onPress={dismissAlert} />
+            </Panel>
+          ) : null}
           {keyRejectedMessage ? (
             <Panel style={{ gap: spacing.sm }}>
               <AppText color={colors.amber}>{keyRejectedMessage}</AppText>
@@ -281,6 +309,17 @@ export default function CockpitScreen() {
             isFetching={burnRate.isFetching}
             error={burnRate.error}
           />
+
+          <Panel style={{ gap: spacing.sm }}>
+            <AppText variant="caption" color={colors.textSecondary}>
+              Balance, live burn, and runway stay free. Put burn on a second screen:
+            </AppText>
+            <AppButton
+              title="Open Desk Monitor"
+              variant="ghost"
+              onPress={() => router.push('/desk')}
+            />
+          </Panel>
 
           {!meta?.isManagementKey ? (
             <ManagementKeyHint feature="Spend trends and model breakdowns." />

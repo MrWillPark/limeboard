@@ -34,10 +34,20 @@ ASC store name: **Burnline Cockpit** (plain "Burnline" taken). Brand on site/in-
 
 **Connected:** `@getburnline` via Composio (account active)
 
-- Profile not yet configured via API; drafts below are ready
+- Bio already set: *Know your burn. Know your runway. Mobile LLM spend cockpit — OpenRouter today.*
+- Website linked to burnline.dev
+- **API posting blocked (Sep 11 2026):** X API returned `402 credits depleted` — top up X developer credits or post manually from the drafts below
 - **Before posting:** approve each post
 
 ---
+
+## Manual post checklist (API credits empty)
+
+Post from [x.com/getburnline](https://x.com/getburnline) with assets from `store/screenshots/iphone-6.9-1290-overlaid/` (BURNLINE overlays) or desk-monitor set:
+
+1. Post A + `02-cockpit-burn-trend.png` → pin
+2. Post B + desk monitor asset
+3. Post C + `03-platform-pulse.png`
 
 ## Profile copy (when account is ready)
 
