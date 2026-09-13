@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Burnline Forecast — local OpenRouter burn &amp; runway</title>
+  <meta name="description" content="Credits left ≠ runway left. Paste a read-only OpenRouter session key in your browser — it never leaves your device. See burn and days-to-zero." />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://burnline.dev/forecast/" />
+  <meta property="og:title" content="Burnline Forecast — burn &amp; runway" />
+  <meta property="og:description" content="Credits left ≠ runway left. Local-only OpenRouter burn check — key stays in your browser." />
+  <meta property="og:site_name" content="Burnline" />
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Burnline Forecast — burn &amp; runway" />
+  <meta name="twitter:description" content="Credits left ≠ runway left. Local-only OpenRouter burn check — key stays in your browser." />
+
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      max-width: 36rem;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 2.5rem;
+      line-height: 1.55;
+      background: #0B0E0D;
+      color: #F2F7F4;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    main { flex: 1; }
+    .brand {
+      color: #39FF14;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 0 0 1.25rem;
+    }
+    .brand a { color: inherit; text-decoration: none; }
+    .brand a:hover { opacity: 0.85; }
+    h1 {
+      font-size: 1.85rem;
+      font-weight: 700;
+      line-height: 1.15;
+      margin: 0 0 0.75rem;
+      letter-spacing: -0.025em;
+    }
+    .lede {
+      color: #9AADA3;
+      font-size: 1.05rem;
+      margin: 0 0 0.65rem;
+    }
+    .trust {
+      color: #6B7F72;
+      font-size: 0.9rem;
+      margin: 0 0 1.75rem;
+    }
+    .trust strong { color: #9AADA3; font-weight: 600; }
+    label.field-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #9AADA3;
+      margin: 0 0 0.5rem;
+    }
+    .key-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    input[type="password"],
+    input[type="text"] {
+      flex: 1;
+      min-width: 0;
+      background: #121816;
+      border: 1px solid #24302A;
+      color: #F2F7F4;
+      border-radius: 0.5rem;
+      padding: 0.7rem 0.85rem;
+      font-size: 0.95rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    input:focus {
+      outline: none;
+      border-color: #39FF14;
+    }
+    .btn {
+      display: inline-block;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      padding: 0.7rem 1.15rem;
+      border-radius: 0.5rem;
+      transition: opacity 0.15s;
+      font-family: inherit;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary {
+      background: #39FF14;
+      color: #0B0E0D;
+    }
+    .btn-ghost {
+      background: transparent;
+      color: #9AADA3;
+      border: 1px solid #24302A;
+    }
+    .btn-ghost:hover { color: #39FF14; border-color: #39FF14; }
+    .opts {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem 1.25rem;
+      margin: 0 0 1.25rem;
+      font-size: 0.85rem;
+      color: #6B7F72;
+    }
+    .opts label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+    }
+    .hint {
+      font-size: 0.85rem;
+      color: #6B7F72;
+      margin: 0 0 1.5rem;
+    }
+    .hint a { color: #9AADA3; }
+    .hint a:hover { color: #39FF14; }
+    .status {
+      font-size: 0.9rem;
+      margin: 0 0 1rem;
+      min-height: 1.35em;
+    }
+    .status.error { color: #FF6B6B; }
+    .status.info { color: #9AADA3; }
+    .status.ok { color: #39FF14; }
+    .card {
+      display: none;
+      background: #121816;
+      border: 1px solid #1A221E;
+      border-radius: 0.75rem;
+      padding: 1.25rem 1.15rem;
+      margin: 0 0 1.5rem;
+    }
+    .card.visible { display: block; }
+    .card-kicker {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6B7F72;
+      margin: 0 0 1rem;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem 1.25rem;
+      margin: 0 0 1.15rem;
+    }
+    .metric-label {
+      font-size: 0.75rem;
+      color: #6B7F72;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 0 0 0.25rem;
+    }
+    .metric-value {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #F2F7F4;
+      margin: 0;
+    }
+    .metric-value.lime { color: #39FF14; }
+    .metric-value.warn { color: #FFB020; }
+    .metric-sub {
+      font-size: 0.8rem;
+      color: #6B7F72;
+      margin: 0.2rem 0 0;
+    }
+    .spike {
+      display: none;
+      background: #1A1610;
+      border: 1px solid #3D3218;
+      border-radius: 0.5rem;
+      padding: 0.75rem 0.9rem;
+      font-size: 0.9rem;
+      color: #E8D5A8;
+      margin: 0 0 1rem;
+    }
+    .spike.visible { display: block; }
+    .aha {
+      font-size: 0.95rem;
+      color: #C5D4C8;
+      margin: 0 0 1.25rem;
+    }
+    .cta-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .cta-note {
+      font-size: 0.85rem;
+      color: #6B7F72;
+      margin: 0.35rem 0 0;
+    }
+    .fallback {
+      display: none;
+      border: 1px dashed #24302A;
+      border-radius: 0.75rem;
+      padding: 1rem 1.1rem;
+      margin: 0 0 1.5rem;
+      font-size: 0.95rem;
+      color: #9AADA3;
+    }
+    .fallback.visible { display: block; }
+    .fallback code {
+      font-size: 0.85rem;
+      color: #39FF14;
+      background: #121816;
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.25rem;
+    }
+    .teaser {
+      border-top: 1px solid #1A221E;
+      padding-top: 1.5rem;
+      margin-top: 0.5rem;
+    }
+    .teaser h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0 0 0.4rem;
+      color: #C5D4C8;
+    }
+    .teaser p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #6B7F72;
+    }
+    footer {
+      margin-top: 2.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #1A221E;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 1.5rem;
+      font-size: 0.9rem;
+    }
+    footer a {
+      color: #9AADA3;
+      text-decoration: none;
+    }
+    footer a:hover { color: #39FF14; }
+    @media (max-width: 420px) {
+      .metrics { grid-template-columns: 1fr; }
+      .key-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="brand"><a href="/">Burnline</a></p>
+    <h1>Credits left ≠ runway left.</h1>
+    <p class="lede">Check your OpenRouter burn and days-to-zero in the browser.</p>
+    <p class="trust">
+      <strong>Local only.</strong> Your session key stays in this browser
+      (<code style="font-size:0.85em;color:#9AADA3">sessionStorage</code>) —
+      never sent to Burnline servers. Session / limited keys are enough.
+      Do not paste a management key.
+    </p>
+
+    <label class="field-label" for="api-key">OpenRouter session key</label>
+    <div class="key-row">
+      <input
+        id="api-key"
+        type="password"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="sk-or-…"
+        aria-describedby="key-hint"
+      />
+      <button type="button" class="btn btn-primary" id="run-btn">Check burn</button>
+    </div>
+    <div class="opts">
+      <label>
+        <input type="checkbox" id="remember" />
+        Keep until I clear (localStorage)
+      </label>
+      <button type="button" class="btn btn-ghost" id="clear-btn" style="padding:0.35rem 0.75rem;font-size:0.8rem">
+        Disconnect / clear
+      </button>
+    </div>
+    <p class="hint" id="key-hint">
+      Create a limited session key in
+      <a href="https://openrouter.ai/keys" rel="noopener noreferrer" target="_blank">OpenRouter → Keys</a>.
+      Prefer read-only / spend-capped keys over management keys.
+    </p>
+
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+
+    <div class="fallback" id="cors-fallback" role="alert">
+      <strong style="color:#F2F7F4">Browser blocked the OpenRouter call.</strong>
+      Your key never left this device — we do not proxy keys through Burnline.
+      Use the iOS app for live burn, or watch for
+      <a href="/#cli" style="color:#39FF14">CLI audit</a>
+      (<code>npx burnline audit</code>, coming soon).
+    </div>
+
+    <div class="card" id="result-card">
+      <p class="card-kicker">Your runway</p>
+      <div class="metrics">
+        <div>
+          <p class="metric-label">Balance</p>
+          <p class="metric-value" id="m-balance">—</p>
+          <p class="metric-sub" id="m-balance-sub">Account credits remaining</p>
+        </div>
+        <div>
+          <p class="metric-label">Burn today</p>
+          <p class="metric-value lime" id="m-burn">—</p>
+          <p class="metric-sub" id="m-burn-sub">Session key · usage_daily</p>
+        </div>
+        <div>
+          <p class="metric-label">Days to zero</p>
+          <p class="metric-value" id="m-runway">—</p>
+          <p class="metric-sub" id="m-runway-sub">At today’s pace</p>
+        </div>
+        <div>
+          <p class="metric-label">Weekly avg</p>
+          <p class="metric-value" id="m-weekly">—</p>
+          <p class="metric-sub">usage_weekly ÷ 7</p>
+        </div>
+      </div>
+
+      <div class="spike" id="spike" role="status"></div>
+
+      <p class="aha" id="aha">
+        Balance is what’s left. Burn and runway tell you how long it lasts.
+      </p>
+
+      <div class="cta-stack">
+        <a class="btn btn-primary" href="https://apps.apple.com/app/id6805714980">
+          Get Desk Monitor on iOS
+        </a>
+        <p class="cta-note">
+          Want this always-on? Desk Monitor puts the speedometer on a second display.
+        </p>
+        <a class="btn btn-ghost" href="https://apps.apple.com/app/id6805714980" style="text-align:center">
+          Download Burnline Cockpit
+        </a>
+      </div>
+    </div>
+
+    <section class="teaser">
+      <h2>No key? Try Platform Pulse in the app</h2>
+      <p>
+        Browse OpenRouter ecosystem rankings without connecting a personal key —
+        then paste a session key when you want your own burn and runway.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <a href="/">Home</a>
+    <a href="/forecast/">Forecast</a>
+    <a href="/privacy/">Privacy</a>
+    <a href="/terms/">Terms</a>
+    <a href="mailto:hello@burnline.dev">Support</a>
+  </footer>
+
+  <script>
+(function () {
+  var OR_BASE = 'https://openrouter.ai/api/v1';
+  var SS_KEY = 'burnline.forecast.sessionKey';
+  var LS_KEY = 'burnline.forecast.apiKey';
+  var SPIKE_RATIO = 1.5;
+  var SPIKE_MIN_USD = 0.5;
+
+  var el = {
+    input: document.getElementById('api-key'),
+    remember: document.getElementById('remember'),
+    run: document.getElementById('run-btn'),
+    clear: document.getElementById('clear-btn'),
+    status: document.getElementById('status'),
+    card: document.getElementById('result-card'),
+    cors: document.getElementById('cors-fallback'),
+    spike: document.getElementById('spike'),
+    balance: document.getElementById('m-balance'),
+    balanceSub: document.getElementById('m-balance-sub'),
+    burn: document.getElementById('m-burn'),
+    burnSub: document.getElementById('m-burn-sub'),
+    runway: document.getElementById('m-runway'),
+    runwaySub: document.getElementById('m-runway-sub'),
+    weekly: document.getElementById('m-weekly'),
+    aha: document.getElementById('aha'),
+  };
+
+  function formatUsd(n) {
+    if (n == null || !isFinite(n)) return '—';
+    if (Math.abs(n) >= 1000) {
+      return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    }
+    if (Math.abs(n) < 0.01 && n !== 0) return '$' + n.toFixed(4);
+    return '$' + n.toFixed(2);
+  }
+
+  function setStatus(msg, kind) {
+    el.status.textContent = msg || '';
+    el.status.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function loadStoredKey() {
+    try {
+      var fromSs = sessionStorage.getItem(SS_KEY);
+      if (fromSs) {
+        el.input.value = fromSs;
+        el.remember.checked = false;
+        return;
+      }
+      var fromLs = localStorage.getItem(LS_KEY);
+      if (fromLs) {
+        el.input.value = fromLs;
+        el.remember.checked = true;
+      }
+    } catch (_) { /* private mode */ }
+  }
+
+  function persistKey(key) {
+    try {
+      sessionStorage.setItem(SS_KEY, key);
+      if (el.remember.checked) {
+        localStorage.setItem(LS_KEY, key);
+      } else {
+        localStorage.removeItem(LS_KEY);
+      }
+    } catch (_) { /* private mode */ }
+  }
+
+  function clearKey() {
+    el.input.value = '';
+    el.remember.checked = false;
+    el.card.classList.remove('visible');
+    el.cors.classList.remove('visible');
+    el.spike.classList.remove('visible');
+    setStatus('Key cleared from this browser.', 'ok');
+    try {
+      sessionStorage.removeItem(SS_KEY);
+      localStorage.removeItem(LS_KEY);
+    } catch (_) {}
+  }
+
+  async function orGet(path, apiKey) {
+    var res = await fetch(OR_BASE + path, {
+      method: 'GET',
+      headers: {
+        Authorization: 'Bearer ' + apiKey,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://burnline.dev',
+        'X-Title': 'Burnline Forecast',
+      },
+    });
+    var body = null;
+    try { body = await res.json(); } catch (_) {}
+    if (!res.ok) {
+      var msg = (body && body.error && body.error.message) ||
+        ('OpenRouter error (' + res.status + ')');
+      var err = new Error(msg);
+      err.status = res.status;
+      throw err;
+    }
+    return body && body.data != null ? body.data : body;
+  }
+
+  function renderSnapshot(keyInfo, credits) {
+    var balance = Math.max(0, (credits.total_credits || 0) - (credits.total_usage || 0));
+    var burnDaily = Number(keyInfo.usage_daily) || 0;
+    var weeklyAvg = (Number(keyInfo.usage_weekly) || 0) / 7;
+    var days = burnDaily > 0 ? balance / burnDaily : null;
+
+    el.balance.textContent = formatUsd(balance);
+    el.balanceSub.textContent =
+      'Loaded ' + formatUsd(credits.total_credits) +
+      ' · spent ' + formatUsd(credits.total_usage);
+
+    el.burn.textContent = formatUsd(burnDaily) + '/day';
+    el.burnSub.textContent = keyInfo.label
+      ? ('Key · ' + keyInfo.label)
+      : 'Session key · usage_daily';
+
+    el.weekly.textContent = formatUsd(weeklyAvg) + '/day';
+
+    if (days == null) {
+      el.runway.textContent = '—';
+      el.runway.className = 'metric-value';
+      el.runwaySub.textContent = burnDaily <= 0
+        ? 'No burn today on this key'
+        : 'At today’s pace';
+    } else if (days < 1) {
+      el.runway.textContent = '< 1 day';
+      el.runway.className = 'metric-value warn';
+      el.runwaySub.textContent = 'Under 24h at today’s pace';
+    } else {
+      el.runway.textContent = '~' + Math.round(days);
+      el.runway.className = 'metric-value lime';
+      el.runwaySub.textContent = 'Days at today’s pace';
+    }
+
+    var spike =
+      weeklyAvg > 0 &&
+      burnDaily >= SPIKE_MIN_USD &&
+      burnDaily >= weeklyAvg * SPIKE_RATIO;
+
+    if (spike) {
+      var mult = (burnDaily / weeklyAvg).toFixed(1);
+      el.spike.textContent =
+        'Velocity spike: today is ~' + mult +
+        '× your 7-day average. Pro alerts when burn breaks your baseline — on device, not another dashboard.';
+      el.spike.classList.add('visible');
+      el.aha.textContent =
+        'Credits left ≠ runway left. At this pace your balance won’t last as long as it looks.';
+    } else {
+      el.spike.classList.remove('visible');
+      el.aha.textContent =
+        'Balance is what’s left. Burn and runway tell you how long it lasts.';
+    }
+
+    if (keyInfo.is_management_key || keyInfo.is_provisioning_key) {
+      el.aha.textContent +=
+        ' Tip: prefer a limited session key next time — management keys are not needed for burn + runway.';
+    }
+
+    el.card.classList.add('visible');
+  }
+
+  async function runForecast() {
+    var key = (el.input.value || '').trim();
+    el.cors.classList.remove('visible');
+    el.card.classList.remove('visible');
+
+    if (!key) {
+      setStatus('Paste a session key to check burn.', 'error');
+      el.input.focus();
+      return;
+    }
+    if (!/^sk-or-/i.test(key) && !/^or-/i.test(key)) {
+      setStatus('That doesn’t look like an OpenRouter key (sk-or-…).', 'error');
+      return;
+    }
+
+    persistKey(key);
+    el.run.disabled = true;
+    setStatus('Talking to OpenRouter from your browser…', 'info');
+
+    try {
+      var pair = await Promise.all([
+        orGet('/key', key),
+        orGet('/credits', key),
+      ]);
+      renderSnapshot(pair[0], pair[1]);
+      setStatus('Done. Key stayed in this browser.', 'ok');
+    } catch (err) {
+      var isNetwork =
+        err && (
+          err.name === 'TypeError' ||
+          /Failed to fetch|NetworkError|CORS|Load failed/i.test(String(err.message || err))
+        );
+      if (isNetwork) {
+        setStatus('', '');
+        el.cors.classList.add('visible');
+      } else {
+        setStatus(err.message || 'Request failed.', 'error');
+      }
+    } finally {
+      el.run.disabled = false;
+    }
+  }
+
+  el.run.addEventListener('click', runForecast);
+  el.clear.addEventListener('click', clearKey);
+  el.input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') runForecast();
+  });
+
+  loadStoredKey();
+})();
+  </script>
+</body>
+</html>

@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Burnline — LLM API spend cockpit for iOS</title>
-  <meta name="description" content="Know your burn. Know your runway. Live LLM API spend on your phone — burn speedometer, model breakdown, and runway-to-zero. Starts with OpenRouter." />
+  <title>Burnline — Know your burn. Know your runway.</title>
+  <meta name="description" content="Know your burn. Know your runway. Free local OpenRouter forecaster + iOS cockpit with Desk Monitor. Credits left ≠ runway left." />
 
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://burnline.dev/" />
-  <meta property="og:title" content="Burnline — LLM API spend cockpit" />
-  <meta property="og:description" content="Know your burn. Know your runway. Live burn speedometer, model spend, and runway-to-zero on your phone." />
+  <meta property="og:title" content="Burnline — Know your burn. Know your runway." />
+  <meta property="og:description" content="AI credit runway cockpit for OpenRouter. Free local forecaster + live burn on phone and Desk Monitor." />
   <meta property="og:site_name" content="Burnline" />
 
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Burnline — LLM API spend cockpit" />
-  <meta name="twitter:description" content="Know your burn. Know your runway. Live burn speedometer, model spend, and runway-to-zero on your phone." />
+  <meta name="twitter:title" content="Burnline — Know your burn. Know your runway." />
+  <meta name="twitter:description" content="AI credit runway cockpit for OpenRouter. Free local forecaster + live burn on phone and Desk Monitor." />
 
   <style>
     :root { color-scheme: dark; }
@@ -57,6 +57,40 @@
       font-size: 0.95rem;
       margin: 0 0 2rem;
     }
+    .cta-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin: 0 0 2.25rem;
+    }
+    .cta {
+      display: inline-block;
+      background: #39FF14;
+      color: #0B0E0D;
+      font-weight: 600;
+      font-size: 1rem;
+      text-decoration: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      transition: opacity 0.15s;
+    }
+    .cta:hover { opacity: 0.88; }
+    .cta-secondary {
+      display: inline-block;
+      background: transparent;
+      color: #9AADA3;
+      font-weight: 600;
+      font-size: 1rem;
+      text-decoration: none;
+      padding: 0.75rem 1.35rem;
+      border-radius: 0.5rem;
+      border: 1px solid #24302A;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .cta-secondary:hover {
+      color: #39FF14;
+      border-color: #39FF14;
+    }
     ul {
       list-style: none;
       padding: 0;
@@ -74,18 +108,35 @@
       left: 0;
       color: #39FF14;
     }
-    .cta {
-      display: inline-block;
-      background: #39FF14;
-      color: #0B0E0D;
-      font-weight: 600;
-      font-size: 1rem;
-      text-decoration: none;
-      padding: 0.75rem 1.5rem;
-      border-radius: 0.5rem;
-      transition: opacity 0.15s;
+    .cli {
+      border-top: 1px solid #1A221E;
+      padding-top: 1.75rem;
+      margin-top: 0.5rem;
     }
-    .cta:hover { opacity: 0.88; }
+    .cli h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0 0 0.45rem;
+      color: #C5D4C8;
+    }
+    .cli p {
+      margin: 0 0 0.65rem;
+      font-size: 0.95rem;
+      color: #6B7F72;
+    }
+    .cli code {
+      font-size: 0.9rem;
+      color: #39FF14;
+      background: #121816;
+      padding: 0.2rem 0.45rem;
+      border-radius: 0.3rem;
+    }
+    .cli .soon {
+      font-size: 0.8rem;
+      color: #6B7F72;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
     footer {
       margin-top: 3rem;
       padding-top: 1.5rem;
@@ -106,19 +157,33 @@
   <main>
     <p class="brand">Burnline</p>
     <h1>Know your burn. Know your runway.</h1>
-    <p class="subhead">Your mobile LLM spend cockpit — live burn, balance, and model breakdown.</p>
-    <p class="wedge">OpenRouter today. More providers coming.</p>
+    <p class="subhead">AI credit runway cockpit for OpenRouter — live burn, days-to-zero, Desk Monitor.</p>
+    <p class="wedge">Credits left ≠ runway left. OpenRouter today. More providers coming.</p>
+
+    <div class="cta-group">
+      <a class="cta" href="/forecast/">Try free forecaster</a>
+      <a class="cta-secondary" href="https://apps.apple.com/app/id6805714980">Download on the App Store</a>
+    </div>
 
     <ul>
-      <li><strong>Burn speedometer &amp; runway</strong> — see how fast credits drain and when you hit zero.</li>
-      <li><strong>Model spend breakdown</strong> — which models eat your budget, with Desk Monitor for a second screen.</li>
-      <li><strong>Platform Pulse</strong> — browse OpenRouter ecosystem rankings, no API key required.</li>
+      <li><strong>Burn + runway</strong> — see how fast credits drain and when you hit zero, not just balance.</li>
+      <li><strong>Desk Monitor</strong> — put the speedometer on a second display while agents run.</li>
+      <li><strong>Keys on-device</strong> — session keys stay in your browser or Keychain; never uploaded to Burnline.</li>
     </ul>
 
-    <a class="cta" href="https://apps.apple.com/app/id6805714980">Download on the App Store</a>
+    <section class="cli" id="cli">
+      <p class="soon">Coming soon · MVP+1</p>
+      <h2>Prefer the terminal?</h2>
+      <p>
+        For key-skeptical / terminal-native builders:
+        <code>npx burnline audit</code>
+        — same burn + runway, zero Burnline network. Web forecaster stays the default first try.
+      </p>
+    </section>
   </main>
 
   <footer>
+    <a href="/forecast/">Forecast</a>
     <a href="/privacy/">Privacy</a>
     <a href="/terms/">Terms</a>
     <a href="mailto:hello@burnline.dev">Support</a>
