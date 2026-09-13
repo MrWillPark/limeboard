@@ -1,17 +1,28 @@
 # Web Forecaster GTM Proposal
 
-**Status:** Proposal · Sep 12, 2026 · **Phase 0 pages landed**  
+**Status:** Motion · Sep 13, 2026 · **Phase 0 done · ship web GTM now**  
 **App:** Burnline Cockpit · [burnline.dev](https://burnline.dev)  
+**ASC:** 1.0.1 build 21 · `WAITING_FOR_REVIEW` · release `AFTER_APPROVAL`  
 **Companion canvas:** open beside chat — [`burnline-web-forecaster-gtm-proposal.canvas.tsx`](/Users/willpark/.cursor/projects/Users-willpark-Documents-GitHub-limeboard/canvases/burnline-web-forecaster-gtm-proposal.canvas.tsx)
 
-### Phase 0 status (Sep 12, 2026)
+### Now / Next / Hold (Sep 13, 2026)
+
+| Lane | Action |
+|---|---|
+| **Now** | Ship Pages forecast GTM — web can ship ahead of App Store release |
+| **Next** | Community drafts on ASC approval |
+| **Hold** | X / Product Hunt / outbound social until approve — do not post |
+| **After ASC approve** | Live store refresh beat when 1.0.1 releases |
+
+### Phase 0 status (landed)
 
 | Item | Result |
 |---|---|
 | **CORS gate** | **PASS** — OpenRouter `/api/v1/key` + `/credits` return `access-control-allow-origin: *`; `Authorization` is in `access-control-allow-headers`. Live browser audit from `burnline.dev` is viable. Re-probe: `docs/forecast/cors-probe.sh`. |
 | **Pages** | `/` marketing IA + App Store / forecaster CTAs; `/forecast/` local-only client forecaster; privacy wording for browser storage; nav wired across home / forecast / privacy / terms. |
 | **Security** | No Burnline key proxy; session key in `sessionStorage` (optional `localStorage`); management-key discouraged in copy; CORS-failure UI points to CLI coming soon (`/#cli`). |
-| **Not in Phase 0** | CLI package, Discord bot, X automation (unchanged). |
+| **MVP posture** | Web primary / CLI conditional MVP+1 |
+| **Not in Phase 0** | CLI package, Discord bot, X automation (unchanged — outbound/social **HOLD**). |
 
 ---
 
