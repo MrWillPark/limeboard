@@ -95,6 +95,19 @@ export function buildTodayTrendSeries(
   return points;
 }
 
+/**
+ * Convert cumulative /key usage samples into per-interval deltas so overview
+ * sparklines show burn pulses instead of a straight rising ramp.
+ */
+export function deltasFromCumulativeTrail(points: TrendPoint[]): TrendPoint[] {
+  if (points.length < 2) return points;
+  return points.map((p, i) => {
+    if (i === 0) return { ...p, value: 0 };
+    const prev = points[i - 1]!.value;
+    return { ...p, value: Math.max(0, p.value - prev) };
+  });
+}
+
 export function resetTodayTrailForTests() {
   sampleDay = null;
   samples = [];

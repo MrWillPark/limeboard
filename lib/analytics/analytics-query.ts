@@ -370,6 +370,49 @@ export function fillTimeSeriesGaps(
   return filled;
 }
 
+/**
+ * Collapse a dense gap-filled series into ≤ maxPoints for sparklines / line charts.
+ * Uses per-bucket max so short spend bursts stay visible instead of washing into a
+ * flat zero baseline when ~180 minute points are drawn in ~120px.
+ */
+export function downsampleTracePoints(
+  points: AnalyticsSeriesPoint[],
+  maxPoints = 48
+): AnalyticsSeriesPoint[] {
+  if (points.length <= maxPoints || maxPoints < 2) return points;
+
+  const out: AnalyticsSeriesPoint[] = [];
+  const bucketSize = points.length / maxPoints;
+  for (let i = 0; i < maxPoints; i++) {
+    const start = Math.floor(i * bucketSize);
+    const end = Math.max(start + 1, Math.floor((i + 1) * bucketSize));
+    let peak = points[start]!;
+    for (let j = start + 1; j < end; j++) {
+      const p = points[j]!;
+      if (p.value > peak.value) peak = p;
+    }
+    out.push(peak);
+  }
+  return out;
+}
+
+export function downsampleTraceValues(values: number[], maxPoints = 48): number[] {
+  if (values.length <= maxPoints || maxPoints < 2) return values;
+
+  const out: number[] = [];
+  const bucketSize = values.length / maxPoints;
+  for (let i = 0; i < maxPoints; i++) {
+    const start = Math.floor(i * bucketSize);
+    const end = Math.max(start + 1, Math.floor((i + 1) * bucketSize));
+    let peak = 0;
+    for (let j = start; j < end; j++) {
+      peak = Math.max(peak, values[j] ?? 0);
+    }
+    out.push(peak);
+  }
+  return out;
+}
+
 export function fillStackedGaps(
   data: { buckets: string[]; series: { key: string; values: number[] }[]; totals?: number[] },
   granularity: NonNullable<AnalyticsQueryBody['granularity']>,

@@ -37,11 +37,23 @@ import {
 import {
   filterActivityByTimeframe,
   computeFleetPeriodSpend,
+  isIntradayTimeframe,
   type TimeframeId,
 } from '@/lib/analytics/timeframe';
-import { buildTodayTrendSeries, recordTodaySpendSample } from '@/lib/analytics/today-trail';
+import {
+  buildTodayTrendSeries,
+  deltasFromCumulativeTrail,
+  recordTodaySpendSample,
+} from '@/lib/analytics/today-trail';
+import {
+  downsampleTracePoints,
+  fillTimeSeriesGaps,
+  rowsToTimeSeries,
+} from '@/lib/analytics/analytics-query';
+import { cockpitAnalyticsRollup } from '@/lib/analytics/cockpit-charts';
 import {
   useActivity,
+  useAnalyticsSeries,
   useCredits,
   useKeyInfo,
   useManagedKeys,
@@ -135,14 +147,58 @@ export default function CockpitScreen() {
     burn.runwayLabel !== '—' &&
     !burn.runwayLabel.includes('Connect key');
 
+  const intraday = isIntradayTimeframe(effectiveTimeframe);
+  const overviewRollup = intraday ? cockpitAnalyticsRollup(effectiveTimeframe) : null;
+  const overviewAnalytics = useAnalyticsSeries({
+    metric: 'spend',
+    groupBy: 'model',
+    rollup: overviewRollup ?? 'hour',
+    timeframe: effectiveTimeframe,
+    withDimension: false,
+    enabled: Boolean(overviewRollup) && Boolean(meta?.isManagementKey),
+  });
+
   const spendSeries = useMemo(() => {
+    // Today / 3h overview sparkline: per-bucket Analytics spend (peaks/valleys),
+    // not cumulative /key trail or a single daily Activity point.
+    if (overviewRollup && overviewAnalytics.data) {
+      const raw = rowsToTimeSeries(
+        overviewAnalytics.data.data,
+        overviewAnalytics.data.metricId,
+        overviewAnalytics.data.granularity
+      );
+      const filled = fillTimeSeriesGaps(
+        raw,
+        overviewAnalytics.data.granularity,
+        overviewAnalytics.data.rangeStart,
+        overviewAnalytics.data.rangeEnd
+      );
+      return downsampleTracePoints(filled, 48).map((p) => ({
+        date: p.bucket,
+        value: p.value,
+        label: p.label,
+      }));
+    }
     if (effectiveTimeframe === 'today') {
-      return buildTodayTrendSeries(burn.periodSpend);
+      return deltasFromCumulativeTrail(buildTodayTrendSeries(burn.periodSpend));
+    }
+    if (
+      effectiveTimeframe === '3h' &&
+      burnRate.snapshot.historyPerMinute.length >= 2
+    ) {
+      return burnRate.snapshot.historyPerMinute.map((value, i) => ({
+        date: `m${i}`,
+        value,
+        label: `${i}`,
+      }));
     }
     return dailySpendSeries(windowActivity);
   }, [
+    overviewRollup,
+    overviewAnalytics.data,
     effectiveTimeframe,
     burn.periodSpend,
+    burnRate.snapshot.historyPerMinute,
     windowActivity,
     keyQuery.dataUpdatedAt,
     keysQuery.dataUpdatedAt,

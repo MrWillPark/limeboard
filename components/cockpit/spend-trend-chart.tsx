@@ -27,6 +27,7 @@ import {
   type CockpitMetric,
   type CockpitStackedSeries,
 } from '@/lib/analytics/cockpit-charts';
+import { downsampleTracePoints } from '@/lib/analytics/analytics-query';
 import { shortModelName } from '@/lib/analytics/explore';
 import {
   localDateString,
@@ -149,10 +150,15 @@ export function SpendTrendChart({
   const lineData = useMemo(() => {
     // Intraday Activity is daily-only — use Analytics bucket totals for the line.
     if (intraday && analyticsStacked) {
-      return analyticsStacked.buckets.map((date, i) => ({
-        date,
+      const points = analyticsStacked.buckets.map((date, i) => ({
+        bucket: date,
         value: analyticsStacked.totals[i] ?? 0,
         label: analyticsStacked.bucketLabels[i] ?? date,
+      }));
+      return downsampleTracePoints(points, 48).map((p) => ({
+        date: p.bucket,
+        value: p.value,
+        label: p.label,
       }));
     }
     return buildCockpitLineSeries(activity, timeframe, metric, lineSeries);

@@ -15,6 +15,7 @@ import { colors, spacing } from '@/constants/theme';
 import {
   fillStackedGaps,
   fillTimeSeriesGaps,
+  downsampleTracePoints,
   needsAnalyticsApi,
   rowsToStackedSeries,
   rowsToTimeSeries,
@@ -45,7 +46,7 @@ import {
   timeframeLabel,
   type TimeframeId,
 } from '@/lib/analytics/timeframe';
-import { buildTodayTrendSeries, recordTodaySpendSample } from '@/lib/analytics/today-trail';
+import { buildTodayTrendSeries, deltasFromCumulativeTrail, recordTodaySpendSample } from '@/lib/analytics/today-trail';
 import {
   useActivity,
   useAnalyticsOverview,
@@ -236,7 +237,8 @@ export default function ExploreScreen() {
   const todayTrail = useMemo(() => {
     if (useAnalytics) return null;
     if (timeframe !== 'today' || metric !== 'spend') return null;
-    return buildTodayTrendSeries(liveToday?.spend ?? 0);
+    // Deltas — cumulative /key trail renders as a straight ramp, not burn shape.
+    return deltasFromCumulativeTrail(buildTodayTrendSeries(liveToday?.spend ?? 0));
   }, [
     useAnalytics,
     timeframe,
@@ -264,12 +266,14 @@ export default function ExploreScreen() {
         lineAnalytics.data.metricId,
         lineAnalytics.data.granularity
       );
-      return fillTimeSeriesGaps(
+      const filled = fillTimeSeriesGaps(
         raw,
         lineAnalytics.data.granularity,
         lineAnalytics.data.rangeStart,
         lineAnalytics.data.rangeEnd
       );
+      // Dense minute/hour zero-fill looks flat in a narrow chart — keep peaks.
+      return downsampleTracePoints(filled, 48);
     }
     if (todayTrail) {
       return todayTrail.map((p) => ({
@@ -731,7 +735,7 @@ export default function ExploreScreen() {
                       </AppText>
                     ) : timeframe === 'today' ? (
                       <AppText variant="caption">
-                        Midnight → now · trail grows as you refresh (live /key)
+                        Midnight → now · per-refresh spend deltas (live /key)
                       </AppText>
                     ) : null}
                   </>
