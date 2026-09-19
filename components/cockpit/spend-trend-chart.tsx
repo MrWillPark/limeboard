@@ -112,11 +112,6 @@ export function SpendTrendChart({
     setSelectedIndex(null);
   }, [metric]);
 
-  const lineData = useMemo(
-    () => buildCockpitLineSeries(activity, timeframe, metric, lineSeries),
-    [activity, timeframe, metric, lineSeries]
-  );
-
   const activityStacked = useMemo(() => {
     if (intraday || activity.length === 0) return null;
     return colorizeStacked(buildCockpitStackedSeries(activity, metric));
@@ -151,10 +146,21 @@ export function SpendTrendChart({
     return colorizeStacked(raw);
   }, [intraday, metric, primaryAnalytics.data, completionAnalytics.data]);
 
+  const lineData = useMemo(() => {
+    // Intraday Activity is daily-only — use Analytics bucket totals for the line.
+    if (intraday && analyticsStacked) {
+      return analyticsStacked.buckets.map((date, i) => ({
+        date,
+        value: analyticsStacked.totals[i] ?? 0,
+        label: analyticsStacked.bucketLabels[i] ?? date,
+      }));
+    }
+    return buildCockpitLineSeries(activity, timeframe, metric, lineSeries);
+  }, [intraday, analyticsStacked, activity, timeframe, metric, lineSeries]);
+
   const stacked = intraday ? analyticsStacked : activityStacked;
-  const stackLoading =
+  const chartLoading =
     intraday &&
-    mode === 'stack' &&
     (primaryAnalytics.isLoading ||
       (metric === 'tokens' && completionAnalytics.isLoading));
 
@@ -190,7 +196,8 @@ export function SpendTrendChart({
 
   const scrubSlices = useMemo(() => {
     if (selectedIndex == null) return [];
-    if (mode === 'stack' && stacked) {
+    // Prefer Analytics model slices whenever we have stacked buckets (line or stack).
+    if (stacked && (mode === 'stack' || intraday)) {
       return slicesAtBucket(stacked, selectedIndex);
     }
     if (timeframe === 'today') {
@@ -201,7 +208,16 @@ export function SpendTrendChart({
       return modelBreakdownForDay(activity, day, metric);
     }
     return [];
-  }, [selectedIndex, mode, stacked, scrubValue, activity, metric, timeframe]);
+  }, [
+    selectedIndex,
+    mode,
+    stacked,
+    scrubValue,
+    activity,
+    metric,
+    timeframe,
+    intraday,
+  ]);
 
   const headlineValue =
     scrubValue != null
@@ -260,7 +276,7 @@ export function SpendTrendChart({
         />
       </View>
 
-      {stackLoading ? (
+      {chartLoading ? (
         <ActivityIndicator color={colors.limeSoft} style={{ marginVertical: spacing.md }} />
       ) : mode === 'stack' && stacked ? (
         <>
@@ -274,7 +290,11 @@ export function SpendTrendChart({
           />
           <Legend series={stacked.series} />
         </>
-      ) : mode === 'stack' && intraday && !stackLoading ? (
+      ) : mode === 'stack' && intraday && !chartLoading ? (
+        <AppText variant="caption" color={colors.textMuted}>
+          No Analytics buckets in this window yet.
+        </AppText>
+      ) : intraday && !chartLoading && lineData.length === 0 ? (
         <AppText variant="caption" color={colors.textMuted}>
           No Analytics buckets in this window yet.
         </AppText>

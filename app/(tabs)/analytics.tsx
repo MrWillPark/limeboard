@@ -659,8 +659,8 @@ export default function ExploreScreen() {
                   metric !== 'spend' ? (
                   <AppText variant="caption">
                     {timeframe === '3h'
-                      ? 'Pick Minute or Hour rollup for a real 3-hour Analytics series.'
-                      : 'Today only has live spend from /key unless you pick Minute or Hour rollup (Analytics API).'}
+                      ? '3h uses Minute or Hour rollup via the Analytics API.'
+                      : 'Today uses Hour or Minute rollup via the Analytics API.'}
                   </AppText>
                 ) : showBar ? (
                   <>

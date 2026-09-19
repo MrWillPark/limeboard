@@ -63,6 +63,7 @@ export function cockpitIntradayStack(timeframe: TimeframeId): boolean {
 }
 
 export function cockpitAnalyticsRollup(timeframe: TimeframeId): 'minute' | 'hour' {
+  // 3h → minute buckets; Today (1d) → hour buckets so the x-axis isn't a single day point.
   return timeframe === '3h' ? 'minute' : 'hour';
 }
 

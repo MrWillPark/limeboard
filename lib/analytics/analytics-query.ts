@@ -43,12 +43,23 @@ export function needsAnalyticsApi(rollup: ExploreRollup): boolean {
   return rollup === 'minute' || rollup === 'hour';
 }
 
-/** Rollups allowed for a timeframe — illegal combos are filtered in Explore UI. */
+/**
+ * Rollups allowed for a timeframe — illegal combos are filtered in Explore UI.
+ * Short windows exclude day/week so charts never collapse to a single bucket
+ * (which renders as a flat / straight-line trace).
+ */
 export function allowedRollupsForTimeframe(timeframe: TimeframeId): ExploreRollup[] {
   if (timeframe === '3h') return ['minute', 'hour'];
-  if (timeframe === '7d' || timeframe === '30d') return ['hour', 'day', 'week'];
-  // today
-  return ['minute', 'hour', 'day', 'week'];
+  if (timeframe === 'today') return ['hour', 'minute'];
+  // 7d / 30d
+  return ['hour', 'day', 'week'];
+}
+
+/** Default rollup when switching into a timeframe (short → finer buckets). */
+export function preferredRollupForTimeframe(timeframe: TimeframeId): ExploreRollup {
+  if (timeframe === '3h') return 'minute';
+  if (timeframe === 'today') return 'hour';
+  return 'day';
 }
 
 export function coerceRollupForTimeframe(
@@ -57,7 +68,7 @@ export function coerceRollupForTimeframe(
 ): ExploreRollup {
   const allowed = allowedRollupsForTimeframe(timeframe);
   if (allowed.includes(rollup)) return rollup;
-  return allowed[0]!;
+  return preferredRollupForTimeframe(timeframe);
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   allowedRollupsForTimeframe,
   coerceRollupForTimeframe,
   needsAnalyticsApi,
+  preferredRollupForTimeframe,
 } from '@/lib/analytics/analytics-query';
 import {
   EXPLORE_GROUPS,
@@ -63,6 +64,11 @@ export function ExploreFilters({
 
   const handleTimeframeChange = (id: TimeframeId) => {
     onTimeframeChange(id);
+    // Short windows always jump to a granular rollup so traces aren't a single day bucket.
+    if (id === '3h' || id === 'today') {
+      onRollupChange(preferredRollupForTimeframe(id));
+      return;
+    }
     const next = coerceRollupForTimeframe(id, rollup);
     if (next !== rollup) onRollupChange(next);
   };
