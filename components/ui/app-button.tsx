@@ -52,7 +52,8 @@ export function AppButton({
         {
           backgroundColor: bg,
           borderColor: border,
-          opacity: disabled ? 0.45 : pressed ? 0.85 : 1,
+          opacity: disabled ? 0.45 : 1,
+          transform: [{ scale: pressed && !disabled ? 0.98 : 1 }],
         },
         style,
       ]}

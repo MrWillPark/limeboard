@@ -1,20 +1,42 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import Svg, { Circle, Defs, Line, LinearGradient as SvgGradient, Path, Polyline, Stop } from 'react-native-svg';
 
+import { GaugeFillPath, GaugeNeedleSvg, GaugeRangeRow } from '@/components/shared/animated-gauge';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
 import { colors, fonts, radii, spacing } from '@/constants/theme';
+import { useGaugeMotion } from '@/hooks/use-gauge-motion';
 import { usePlatformRankings } from '@/hooks/use-platform-rankings';
 import {
   formatTokenCount,
   formatTokensPerSecond,
+  platformGaugeMaxTps,
+  platformGaugeRangeCopy,
   type PlatformModelRank,
   type PlatformRankingsSnapshot,
   type PlatformVolumePoint,
 } from '@/lib/platform/rankings';
+import {
+  GAUGE_START_ANGLE,
+  GAUGE_SWEEP,
+  gaugePolar,
+  gaugeTrackPath,
+  gaugeValueToRatio,
+} from '@/lib/ui/gauge-geometry';
 
 type Props = {
   compact?: boolean;
@@ -24,29 +46,6 @@ const GAUGE_SIZE = 168;
 const GAUGE_RADIUS = 62;
 const GAUGE_CX = GAUGE_SIZE / 2;
 const GAUGE_CY = GAUGE_SIZE / 2 + 10;
-const START_ANGLE = 135;
-const SWEEP = 270;
-
-function polar(angleDeg: number, radius = GAUGE_RADIUS) {
-  const rad = (angleDeg * Math.PI) / 180;
-  return {
-    x: GAUGE_CX + radius * Math.cos(rad),
-    y: GAUGE_CY + radius * Math.sin(rad),
-  };
-}
-
-function arcPath(fromAngle: number, toAngle: number, radius = GAUGE_RADIUS) {
-  const start = polar(fromAngle, radius);
-  const end = polar(toAngle, radius);
-  const large = toAngle - fromAngle > 180 ? 1 : 0;
-  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${large} 1 ${end.x} ${end.y}`;
-}
-
-function valueToAngle(value: number, max: number) {
-  if (max <= 0) return START_ANGLE;
-  const ratio = Math.max(0, Math.min(1, value / max));
-  return START_ANGLE + ratio * SWEEP;
-}
 
 function isUsableSnapshot(
   data: PlatformRankingsSnapshot | null | undefined
@@ -125,15 +124,40 @@ export function PlatformPulse({ compact }: Props) {
 }
 
 function LiveDot() {
+  const pulse = useSharedValue(1);
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    if (reduced) {
+      pulse.value = 1;
+      return;
+    }
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(0.35, { duration: 1100, easing: Easing.inOut(Easing.quad) }),
+        withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      false
+    );
+  }, [pulse, reduced]);
+
+  const dotStyle = useAnimatedStyle(() => ({
+    opacity: pulse.value,
+  }));
+
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-      <View
-        style={{
-          width: 7,
-          height: 7,
-          borderRadius: 999,
-          backgroundColor: colors.lime,
-        }}
+      <Animated.View
+        style={[
+          {
+            width: 7,
+            height: 7,
+            borderRadius: 999,
+            backgroundColor: colors.lime,
+          },
+          dotStyle,
+        ]}
       />
       <AppText variant="caption" color={colors.limeSoft} style={{ fontSize: 11 }}>
         LIVE CACHE
@@ -145,85 +169,82 @@ function LiveDot() {
 function PlatformHeroGauge({ data }: { data: PlatformRankingsSnapshot }) {
   const tps = data.tokensPerSecond;
   const peak = Math.max(data.peakDayTokens, 1);
-  const maxTps = Math.max(peak / 86_400, tps * 1.15, 1);
-  const activeEnd = valueToAngle(tps, maxTps);
-  const needleTip = polar(activeEnd, GAUGE_RADIUS - 16);
-  const needleBaseL = polar(activeEnd - 90, 6);
-  const needleBaseR = polar(activeEnd + 90, 6);
+  const maxTps = platformGaugeMaxTps(tps, peak);
+  const range = platformGaugeRangeCopy(maxTps);
+  const [laidOut, setLaidOut] = useState(false);
+  const { ratio } = useGaugeMotion(gaugeValueToRatio(tps, maxTps), laidOut);
   const vsPeak = Math.round((data.totalTokens / peak) * 100);
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(60).duration(450)}
+      entering={FadeIn.delay(60).duration(400)}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
         gap: spacing.md,
       }}
     >
-      <View style={{ width: GAUGE_SIZE, alignItems: 'center' }}>
-        <Svg width={GAUGE_SIZE} height={GAUGE_SIZE - 12}>
-          <Defs>
-            <SvgGradient id="pulseArc" x1="0%" y1="0%" x2="100%" y2="0%">
-              <Stop offset="0%" stopColor={colors.limeSoft} stopOpacity="0.4" />
-              <Stop offset="100%" stopColor={colors.lime} stopOpacity="1" />
-            </SvgGradient>
-          </Defs>
-          <Path
-            d={arcPath(START_ANGLE, START_ANGLE + SWEEP)}
-            stroke={colors.borderStrong}
-            strokeWidth={10}
-            fill="none"
-            strokeLinecap="round"
-          />
-          {tps > 0 ? (
+      <View
+        style={{ width: GAUGE_SIZE, alignItems: 'center' }}
+        accessibilityRole="image"
+        accessibilityLabel={`Platform throughput ${formatTokensPerSecond(tps)} tok/s. Scale ${range.span}, ${range.window}.`}
+        onLayout={() => setLaidOut(true)}
+      >
+        <View style={{ width: GAUGE_SIZE, height: GAUGE_SIZE - 12 }}>
+          <Svg width={GAUGE_SIZE} height={GAUGE_SIZE - 12}>
+            <Defs>
+              <SvgGradient id="pulseArc" x1="0%" y1="0%" x2="100%" y2="0%">
+                <Stop offset="0%" stopColor={colors.limeSoft} stopOpacity="0.4" />
+                <Stop offset="100%" stopColor={colors.lime} stopOpacity="1" />
+              </SvgGradient>
+            </Defs>
             <Path
-              d={arcPath(START_ANGLE, Math.max(START_ANGLE + 0.5, activeEnd))}
-              stroke="url(#pulseArc)"
+              d={gaugeTrackPath(GAUGE_CX, GAUGE_CY, GAUGE_RADIUS)}
+              stroke={colors.borderStrong}
               strokeWidth={10}
               fill="none"
               strokeLinecap="round"
             />
-          ) : null}
-          {[0.25, 0.5, 0.75, 1].map((t) => {
-            const a = START_ANGLE + t * SWEEP;
-            const inner = polar(a, GAUGE_RADIUS - 14);
-            const outer = polar(a, GAUGE_RADIUS - 4);
-            return (
-              <Line
-                key={t}
-                x1={inner.x}
-                y1={inner.y}
-                x2={outer.x}
-                y2={outer.y}
-                stroke={colors.borderStrong}
-                strokeWidth={1.5}
-              />
-            );
-          })}
-          <Line
-            x1={GAUGE_CX}
-            y1={GAUGE_CY}
-            x2={needleTip.x}
-            y2={needleTip.y}
-            stroke={colors.text}
-            strokeWidth={2}
-            strokeLinecap="round"
-          />
-          <Path
-            d={`M ${needleBaseL.x} ${needleBaseL.y} L ${needleTip.x} ${needleTip.y} L ${needleBaseR.x} ${needleBaseR.y} Z`}
-            fill={colors.lime}
-          />
-          <Circle
-            cx={GAUGE_CX}
-            cy={GAUGE_CY}
-            r={5}
-            fill={colors.panel}
-            stroke={colors.limeGlow}
-            strokeWidth={2}
-          />
-        </Svg>
-        <View style={{ alignItems: 'center', marginTop: -36, gap: 2 }}>
+            <GaugeFillPath
+              cx={GAUGE_CX}
+              cy={GAUGE_CY}
+              radius={GAUGE_RADIUS}
+              strokeWidth={10}
+              color="url(#pulseArc)"
+              ratio={ratio}
+            />
+            {[0.25, 0.5, 0.75, 1].map((t) => {
+              const a = GAUGE_START_ANGLE + t * GAUGE_SWEEP;
+              const inner = gaugePolar(GAUGE_CX, GAUGE_CY, a, GAUGE_RADIUS - 14);
+              const outer = gaugePolar(GAUGE_CX, GAUGE_CY, a, GAUGE_RADIUS - 4);
+              return (
+                <Line
+                  key={t}
+                  x1={inner.x}
+                  y1={inner.y}
+                  x2={outer.x}
+                  y2={outer.y}
+                  stroke={colors.borderStrong}
+                  strokeWidth={1.5}
+                />
+              );
+            })}
+            <GaugeNeedleSvg
+              cx={GAUGE_CX}
+              cy={GAUGE_CY}
+              length={GAUGE_RADIUS - 16}
+              ratio={ratio}
+              shaftColor={colors.text}
+              tipColor={colors.lime}
+              hubFill={colors.panel}
+              hubStroke={colors.limeGlow}
+              hubR={5}
+              shaftWidth={2}
+              baseR={6}
+            />
+          </Svg>
+        </View>
+        <View style={{ alignItems: 'center', marginTop: -32, gap: 2 }}>
           <AppText
             variant="mono"
             color={colors.lime}
@@ -232,8 +253,17 @@ function PlatformHeroGauge({ data }: { data: PlatformRankingsSnapshot }) {
             {formatTokensPerSecond(tps)}
           </AppText>
           <AppText variant="caption" color={colors.textMuted} style={{ fontSize: 11 }}>
-            tok/sec · est.
+            {range.unit}
           </AppText>
+        </View>
+        <View style={{ width: '100%', marginTop: 4 }}>
+          <GaugeRangeRow
+            minLabel={range.minLabel}
+            maxLabel={range.maxLabel}
+            caption={range.caption}
+            minHint="idle"
+            maxHint="14d peak"
+          />
         </View>
       </View>
 
@@ -435,6 +465,21 @@ function ModelBar({
   color: string;
 }) {
   const pct = Math.max((model.tokens / max) * 100, 2);
+  const grow = useSharedValue(0);
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    grow.value = reduced
+      ? 1
+      : withDelay(
+          80 + rank * 45,
+          withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) })
+        );
+  }, [grow, reduced, rank]);
+
+  const barStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: grow.value }],
+  }));
 
   return (
     <View style={{ gap: 4 }}>
@@ -454,13 +499,17 @@ function ModelBar({
           overflow: 'hidden',
         }}
       >
-        <View
-          style={{
-            height: '100%',
-            width: `${pct}%`,
-            backgroundColor: color,
-            borderRadius: 999,
-          }}
+        <Animated.View
+          style={[
+            {
+              height: '100%',
+              width: `${pct}%`,
+              backgroundColor: color,
+              borderRadius: 999,
+              transformOrigin: 'left center',
+            },
+            barStyle,
+          ]}
         />
       </View>
     </View>
@@ -518,17 +567,44 @@ function MiniBars({ models }: { models: PlatformModelRank[] }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 40 }}>
       {models.map((m, i) => (
-        <View
+        <MiniBar
           key={m.slug}
-          style={{
-            width: 10,
-            height: Math.max(6, (m.tokens / max) * 40),
-            borderRadius: 3,
-            backgroundColor: colors.chart[i % colors.chart.length],
-            opacity: 0.9,
-          }}
+          height={Math.max(6, (m.tokens / max) * 40)}
+          color={colors.chart[i % colors.chart.length]!}
+          delay={i * 50}
         />
       ))}
     </View>
+  );
+}
+
+function MiniBar({ height, color, delay }: { height: number; color: string; delay: number }) {
+  const grow = useSharedValue(0);
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    grow.value = reduced
+      ? 1
+      : withDelay(delay, withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) }));
+  }, [delay, grow, reduced]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scaleY: grow.value }],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width: 10,
+          height,
+          borderRadius: 3,
+          backgroundColor: color,
+          opacity: 0.9,
+          transformOrigin: 'bottom center',
+        },
+        style,
+      ]}
+    />
   );
 }

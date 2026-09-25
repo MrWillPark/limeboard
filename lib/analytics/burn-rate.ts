@@ -232,11 +232,49 @@ export function formatRatePerSecondCompact(value: number, mode: BurnRateMode): s
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
   if (value >= 10) return String(Math.round(value));
-  return String(Math.round(value * 60));
+  if (value >= 1) return value.toFixed(1);
+  return value.toFixed(2);
 }
 
 export function formatRateUnit(mode: BurnRateMode): string {
   return mode === 'tokens' ? 'tok/s' : '/min';
+}
+
+export function formatGaugeScaleValue(maxPerSecond: number, mode: BurnRateMode): string {
+  if (!Number.isFinite(maxPerSecond) || maxPerSecond <= 0) {
+    return mode === 'spend' ? '$0' : '0';
+  }
+  return formatRatePerSecondCompact(maxPerSecond, mode);
+}
+
+export type GaugeRangeCopy = {
+  minLabel: string;
+  maxLabel: string;
+  unit: string;
+  window: string;
+  /** e.g. "0–50 tok/s" */
+  span: string;
+  scaleHint: string;
+  caption: string;
+};
+
+/** Labels for the auto-fit dial: min, current scale max, averaging window. */
+export function gaugeRangeCopy(maxPerSecond: number, mode: BurnRateMode): GaugeRangeCopy {
+  const unit = mode === 'tokens' ? 'tok/s' : '$/min';
+  const minLabel = mode === 'spend' ? '$0' : '0';
+  const maxLabel = formatGaugeScaleValue(maxPerSecond, mode);
+  const window = mode === 'tokens' ? '3-min avg' : 'between polls';
+  const scaleHint = 'scale follows recent peak';
+  const span = `${minLabel}–${maxLabel} ${unit}`;
+  return {
+    minLabel,
+    maxLabel,
+    unit,
+    window,
+    span,
+    scaleHint,
+    caption: `${window} · ${scaleHint}`,
+  };
 }
 
 export function tokenGaugeMaxScale(current: number, peak: number): number {

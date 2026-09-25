@@ -1,18 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View, type LayoutChangeEvent } from 'react-native';
-import Svg, { Circle, Line, Path, Polyline } from 'react-native-svg';
+import Svg, { Line, Path, Polyline } from 'react-native-svg';
 
+import { GaugeFillPath, GaugeNeedleSvg, GaugeRangeRow } from '@/components/shared/animated-gauge';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
 import { colors, spacing } from '@/constants/theme';
+import { useGaugeMotion } from '@/hooks/use-gauge-motion';
 import {
   formatPeakAvg,
   formatRatePerSecondCompact,
-  formatRateUnit,
+  gaugeRangeCopy,
   spendGaugeMaxScale,
   tokenGaugeMaxScale,
   type BurnRateSnapshot,
 } from '@/lib/analytics/burn-rate';
+import {
+  GAUGE_START_ANGLE,
+  GAUGE_SWEEP,
+  gaugePolar,
+  gaugeTrackPath,
+  gaugeValueToRatio,
+} from '@/lib/ui/gauge-geometry';
 
 type Props = {
   snapshot: BurnRateSnapshot;
@@ -26,29 +35,6 @@ const RADIUS = 48;
 const CX = GAUGE_WIDTH / 2;
 const CY = GAUGE_WIDTH / 2 + 6;
 const SVG_HEIGHT = 96;
-const START_ANGLE = 135;
-const SWEEP = 270;
-
-function polar(angleDeg: number, radius = RADIUS) {
-  const rad = (angleDeg * Math.PI) / 180;
-  return {
-    x: CX + radius * Math.cos(rad),
-    y: CY + radius * Math.sin(rad),
-  };
-}
-
-function arcPath(fromAngle: number, toAngle: number, radius = RADIUS) {
-  const start = polar(fromAngle, radius);
-  const end = polar(toAngle, radius);
-  const large = toAngle - fromAngle > 180 ? 1 : 0;
-  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${large} 1 ${end.x} ${end.y}`;
-}
-
-function valueToAngle(value: number, max: number) {
-  if (max <= 0) return START_ANGLE;
-  const ratio = Math.max(0, Math.min(1, value / max));
-  return START_ANGLE + ratio * SWEEP;
-}
 
 function formatAgeSeconds(updated: Date | null, tick: number) {
   void tick;
@@ -97,11 +83,10 @@ export function BurnGauge({ snapshot, isLoading, isFetching, error }: Props) {
     return tokenGaugeMaxScale(snapshot.currentPerSecond, snapshot.peakPerSecond);
   }, [snapshot]);
 
-  const needleAngle = valueToAngle(snapshot.currentPerSecond, maxScale);
-  const needleTip = polar(needleAngle, RADIUS - 14);
-  const needleBaseL = polar(needleAngle - 90, 5);
-  const needleBaseR = polar(needleAngle + 90, 5);
-  const activeEnd = valueToAngle(snapshot.currentPerSecond, maxScale);
+  const [laidOut, setLaidOut] = useState(false);
+  const range = useMemo(() => gaugeRangeCopy(maxScale, snapshot.mode), [maxScale, snapshot.mode]);
+  const targetRatio = gaugeValueToRatio(snapshot.currentPerSecond, maxScale);
+  const { ratio } = useGaugeMotion(targetRatio, Boolean(!isLoading && laidOut));
 
   const sparkValues = snapshot.historyPerMinute;
   const sparkPoints = useMemo(
@@ -139,57 +124,62 @@ export function BurnGauge({ snapshot, isLoading, isFetching, error }: Props) {
         </View>
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <View style={{ width: GAUGE_WIDTH, alignItems: 'center' }}>
-            <Svg width={GAUGE_WIDTH} height={SVG_HEIGHT}>
-              <Path
-                d={arcPath(START_ANGLE, START_ANGLE + SWEEP)}
-                stroke={colors.border}
-                strokeWidth={7}
-                fill="none"
-                strokeLinecap="round"
-              />
-              {snapshot.currentPerSecond > 0 ? (
+          <View
+            style={{ width: GAUGE_WIDTH, alignItems: 'center' }}
+            accessibilityRole="image"
+            accessibilityLabel={`${title} ${formatRatePerSecondCompact(snapshot.currentPerSecond, snapshot.mode)} ${range.unit}. Scale ${range.span}, ${range.window}.`}
+            onLayout={() => setLaidOut(true)}
+          >
+            <View style={{ width: GAUGE_WIDTH, height: SVG_HEIGHT }}>
+              <Svg width={GAUGE_WIDTH} height={SVG_HEIGHT}>
                 <Path
-                  d={arcPath(START_ANGLE, activeEnd)}
-                  stroke={colors.chartSelect}
+                  d={gaugeTrackPath(CX, CY, RADIUS)}
+                  stroke={colors.border}
                   strokeWidth={7}
                   fill="none"
                   strokeLinecap="round"
+                />
+                <GaugeFillPath
+                  cx={CX}
+                  cy={CY}
+                  radius={RADIUS}
+                  strokeWidth={7}
+                  color={colors.chartSelect}
+                  ratio={ratio}
                   opacity={0.85}
                 />
-              ) : null}
-              {[0.5, 1].map((t) => {
-                const a = START_ANGLE + t * SWEEP;
-                const inner = polar(a, RADIUS - 10);
-                const outer = polar(a, RADIUS - 3);
-                return (
-                  <Line
-                    key={t}
-                    x1={inner.x}
-                    y1={inner.y}
-                    x2={outer.x}
-                    y2={outer.y}
-                    stroke={colors.borderStrong}
-                    strokeWidth={1}
-                  />
-                );
-              })}
-              <Line
-                x1={CX}
-                y1={CY}
-                x2={needleTip.x}
-                y2={needleTip.y}
-                stroke={colors.text}
-                strokeWidth={1.5}
-                strokeLinecap="round"
-              />
-              <Path
-                d={`M ${needleBaseL.x} ${needleBaseL.y} L ${needleTip.x} ${needleTip.y} L ${needleBaseR.x} ${needleBaseR.y} Z`}
-                fill={colors.chartSelect}
-              />
-              <Circle cx={CX} cy={CY} r={4} fill={colors.panel} stroke={colors.borderStrong} strokeWidth={1} />
-            </Svg>
-            <View style={{ alignItems: 'center', marginTop: -28 }}>
+                {[0.5, 1].map((t) => {
+                  const a = GAUGE_START_ANGLE + t * GAUGE_SWEEP;
+                  const inner = gaugePolar(CX, CY, a, RADIUS - 10);
+                  const outer = gaugePolar(CX, CY, a, RADIUS - 3);
+                  return (
+                    <Line
+                      key={t}
+                      x1={inner.x}
+                      y1={inner.y}
+                      x2={outer.x}
+                      y2={outer.y}
+                      stroke={colors.borderStrong}
+                      strokeWidth={1}
+                    />
+                  );
+                })}
+                <GaugeNeedleSvg
+                  cx={CX}
+                  cy={CY}
+                  length={RADIUS - 14}
+                  ratio={ratio}
+                  shaftColor={colors.text}
+                  tipColor={colors.chartSelect}
+                  hubFill={colors.panel}
+                  hubStroke={colors.borderStrong}
+                  hubR={4}
+                  shaftWidth={1.5}
+                  baseR={5}
+                />
+              </Svg>
+            </View>
+            <View style={{ alignItems: 'center', marginTop: -22, gap: 1 }}>
               <AppText
                 variant="mono"
                 selectable
@@ -199,8 +189,17 @@ export function BurnGauge({ snapshot, isLoading, isFetching, error }: Props) {
                 {formatRatePerSecondCompact(snapshot.currentPerSecond, snapshot.mode)}
               </AppText>
               <AppText variant="caption" color={colors.textMuted} style={{ fontSize: 11 }}>
-                {formatRateUnit(snapshot.mode)}
+                {range.unit}
               </AppText>
+            </View>
+            <View style={{ width: '100%', marginTop: 6 }}>
+              <GaugeRangeRow
+                minLabel={range.minLabel}
+                maxLabel={range.maxLabel}
+                caption={range.caption}
+                minHint="idle"
+                maxHint="peak scale"
+              />
             </View>
           </View>
 
@@ -239,7 +238,7 @@ export function BurnGauge({ snapshot, isLoading, isFetching, error }: Props) {
       )}
 
       <AppText variant="caption" color={colors.textMuted} numberOfLines={2}>
-        {snapshot.mode === 'tokens' ? '3-min rolling avg' : 'Poll delta'} · {snapshot.sourceLabel}
+        {range.span} · {snapshot.sourceLabel}
         {snapshot.lagNote ? ` · ${snapshot.lagNote}` : ''}
       </AppText>
     </Panel>

@@ -108,3 +108,20 @@ export function buildRankingsSnapshot(
     peakDayTokens,
   };
 }
+
+export function platformGaugeMaxTps(tokensPerSecond: number, peakDayTokens: number) {
+  return Math.max(peakDayTokens / 86_400, tokensPerSecond * 1.15, 1);
+}
+
+export function platformGaugeRangeCopy(maxTps: number) {
+  const maxLabel = formatTokensPerSecond(maxTps);
+  return {
+    minLabel: '0',
+    maxLabel,
+    unit: 'tok/s',
+    window: 'vs 14d peak day',
+    span: `0–${maxLabel} tok/s`,
+    scaleHint: 'top is peak-day average',
+    caption: 'est. tok/s · top is 14-day peak-day avg',
+  };
+}
