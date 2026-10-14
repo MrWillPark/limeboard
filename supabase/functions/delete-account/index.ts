@@ -55,6 +55,12 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
+
+    // Best-effort cleanup of alert data (FK cascade also covers these on user delete).
+    await admin.from('burn_rate_samples').delete().eq('user_id', user.id);
+    await admin.from('burn_alert_subscriptions').delete().eq('user_id', user.id);
+    await admin.from('push_tokens').delete().eq('user_id', user.id);
+
     const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
     if (deleteError) {
       return new Response(JSON.stringify({ error: deleteError.message }), {

@@ -24,5 +24,6 @@ export function useEntitlement() {
     canGroupByModel: unlocked,
     canUseExploreFilters: unlocked,
     canUseIntradayRollups: unlocked,
+    canUseRemoteBurnAlerts: unlocked,
   };
 }

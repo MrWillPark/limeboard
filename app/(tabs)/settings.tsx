@@ -1,16 +1,39 @@
-import { useCallback, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, ScrollView, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  Switch,
+  TextInput,
+  View,
+} from 'react-native';
 import { router } from 'expo-router';
 import Purchases from 'react-native-purchases';
 
 import { AppButton } from '@/components/ui/app-button';
 import { AppText } from '@/components/ui/app-text';
 import { Panel } from '@/components/ui/panel';
-import { colors, spacing } from '@/constants/theme';
+import { colors, radii, spacing } from '@/constants/theme';
 import { deleteLimeBoardAccount } from '@/lib/auth/delete-account';
 import { LEGAL } from '@/lib/config/legal';
 import { canUseRevenueCatNative, env } from '@/lib/config/env';
 import { useAdminAccount } from '@/hooks/use-admin-account';
+import { useEntitlement } from '@/hooks/use-entitlement';
+import {
+  disableRemoteBurnAlerts,
+  fetchRemoteBurnAlertStatus,
+  upsertRemoteBurnAlert,
+} from '@/lib/alerts/remote-subscription';
+import {
+  getNotificationPermissionGranted,
+  requestNotificationPermissions,
+} from '@/lib/notifications/local-spike';
+import {
+  getLocalSpikeAlertsEnabled,
+  setLocalSpikeAlertsEnabled,
+} from '@/lib/notifications/preferences';
+import { syncPushTokenToSupabase } from '@/lib/notifications/push-token';
 import { useOpenRouter } from '@/providers/openrouter-provider';
 import {
   type ScreenshotPreviewMode,
@@ -18,6 +41,7 @@ import {
 } from '@/providers/screenshot-preview-provider';
 import { useSession } from '@/providers/session-provider';
 import { useSubscription } from '@/providers/subscription-provider';
+
 const PREVIEW_MODES: { id: ScreenshotPreviewMode; label: string }[] = [
   { id: 'live', label: 'Live' },
   { id: 'no-key', label: 'No key' },
@@ -29,9 +53,102 @@ export default function SettingsScreen() {
   const { isConnected, maskedKey, meta, realIsConnected, disconnect } = useOpenRouter();
   const { isAdminAccount, realIsAdminAccount } = useAdminAccount();
   const { isPro, showManageSubscriptions } = useSubscription();
+  const { isPro: entitlementPro } = useEntitlement();
   const { mode: previewMode, setMode: setPreviewMode } = useScreenshotPreview();
   const proUnlocked = isPro || isAdminAccount;
   const [deleting, setDeleting] = useState(false);
+
+  const [localSpikeEnabled, setLocalSpikeEnabled] = useState(true);
+  const [permissionGranted, setPermissionGranted] = useState(false);
+  const [remoteEnabled, setRemoteEnabled] = useState(false);
+  const [hasMonitorKey, setHasMonitorKey] = useState(false);
+  const [monitorKeyDraft, setMonitorKeyDraft] = useState('');
+  const [alertsBusy, setAlertsBusy] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      setLocalSpikeEnabled(await getLocalSpikeAlertsEnabled());
+      setPermissionGranted(await getNotificationPermissionGranted());
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void (async () => {
+      const status = await fetchRemoteBurnAlertStatus(user.id);
+      if (status) {
+        setRemoteEnabled(status.enabled);
+        setHasMonitorKey(status.hasMonitorKey);
+      }
+    })();
+  }, [user?.id]);
+
+  const onToggleLocalSpike = async (next: boolean) => {
+    if (next) {
+      const granted = await requestNotificationPermissions();
+      setPermissionGranted(granted);
+      if (!granted) {
+        Alert.alert(
+          'Notifications disabled',
+          'Enable notifications for Burnline in system Settings to get burn spike alerts.'
+        );
+        return;
+      }
+    }
+    await setLocalSpikeAlertsEnabled(next);
+    setLocalSpikeEnabled(next);
+  };
+
+  const onEnableRemote = async () => {
+    if (!entitlementPro) {
+      router.push('/paywall');
+      return;
+    }
+    if (!user?.id) return;
+
+    const key = monitorKeyDraft.trim();
+    if (!hasMonitorKey && !key) {
+      Alert.alert(
+        'Monitor key required',
+        'Paste a dedicated OpenRouter key used only for remote burn monitoring. Session keys stay on this device.'
+      );
+      return;
+    }
+
+    setAlertsBusy(true);
+    try {
+      await syncPushTokenToSupabase(user.id);
+      await upsertRemoteBurnAlert({ enabled: true, monitorKey: key || undefined });
+      setRemoteEnabled(true);
+      if (key) {
+        setHasMonitorKey(true);
+        setMonitorKeyDraft('');
+      }
+      setPermissionGranted(await getNotificationPermissionGranted());
+    } catch (e) {
+      Alert.alert(
+        'Could not enable remote alerts',
+        e instanceof Error ? e.message : 'Try again later.'
+      );
+    } finally {
+      setAlertsBusy(false);
+    }
+  };
+
+  const onDisableRemote = async () => {
+    setAlertsBusy(true);
+    try {
+      await disableRemoteBurnAlerts();
+      setRemoteEnabled(false);
+    } catch (e) {
+      Alert.alert(
+        'Could not disable remote alerts',
+        e instanceof Error ? e.message : 'Try again later.'
+      );
+    } finally {
+      setAlertsBusy(false);
+    }
+  };
 
   const onDisconnect = () => {
     Alert.alert('Remove API key?', 'The key will be deleted from the device keychain.', [
@@ -62,15 +179,16 @@ export default function SettingsScreen() {
       'Sign out?',
       'Your OpenRouter key stays saved for this account on this device. Other accounts will not see it.',
       [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: () => {
-          void signOutAccount();
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign out',
+          style: 'destructive',
+          onPress: () => {
+            void signOutAccount();
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const onDeleteAccount = () => {
@@ -109,6 +227,7 @@ export default function SettingsScreen() {
       contentInsetAdjustmentBehavior="automatic"
       style={{ flex: 1, backgroundColor: colors.bg }}
       contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: 40 }}
+      keyboardShouldPersistTaps="handled"
     >
       {__DEV__ ? (
         <Panel
@@ -171,6 +290,108 @@ export default function SettingsScreen() {
         )}
       </Panel>
 
+      <Panel style={{ gap: spacing.md }}>
+        <AppText variant="title">Burn spike alerts</AppText>
+        <AppText variant="caption">
+          Local alerts fire when Burnline detects abnormal burn while the app is open or
+          backgrounded. Pro remote monitoring watches a dedicated key when the app is closed.
+        </AppText>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: spacing.md,
+          }}
+        >
+          <View style={{ flex: 1, gap: 4 }}>
+            <AppText variant="label">Local spike notifications</AppText>
+            <AppText variant="caption" color={colors.textSecondary}>
+              {permissionGranted
+                ? 'OS permission granted'
+                : 'Permission needed for lock-screen alerts'}
+            </AppText>
+          </View>
+          <Switch
+            value={localSpikeEnabled}
+            onValueChange={(v) => void onToggleLocalSpike(v)}
+            trackColor={{ false: colors.borderStrong, true: colors.limeDim }}
+            thumbColor={localSpikeEnabled ? colors.lime : colors.textMuted}
+          />
+        </View>
+
+        <View style={{ height: 1, backgroundColor: colors.border }} />
+
+        <View style={{ gap: spacing.sm }}>
+          <AppText variant="label">Remote monitoring (Pro)</AppText>
+          <AppText variant="caption" color={colors.textSecondary}>
+            Optional dedicated OpenRouter key, encrypted on our servers. Your session key stays
+            on-device. Revoke the monitor key anytime in OpenRouter.
+          </AppText>
+
+          {!entitlementPro ? (
+            <AppButton title="Upgrade for remote alerts" onPress={() => router.push('/paywall')} />
+          ) : (
+            <>
+              <TextInput
+                value={monitorKeyDraft}
+                onChangeText={setMonitorKeyDraft}
+                placeholder={
+                  hasMonitorKey ? 'Replace monitor key (optional)' : 'Paste dedicated monitor key'
+                }
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+                style={{
+                  borderWidth: 1,
+                  borderColor: colors.borderStrong,
+                  borderRadius: radii.md,
+                  borderCurve: 'continuous',
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                  color: colors.text,
+                  fontFamily: 'JetBrainsMono_400Regular',
+                  fontSize: 13,
+                  backgroundColor: colors.bgElevated,
+                }}
+              />
+              {remoteEnabled ? (
+                <AppButton
+                  title={alertsBusy ? 'Updating…' : 'Disable remote monitoring'}
+                  variant="danger"
+                  disabled={alertsBusy}
+                  onPress={() => void onDisableRemote()}
+                />
+              ) : (
+                <AppButton
+                  title={alertsBusy ? 'Enabling…' : 'Enable remote monitoring'}
+                  disabled={alertsBusy}
+                  onPress={() => void onEnableRemote()}
+                />
+              )}
+              {remoteEnabled && hasMonitorKey ? (
+                <AppText variant="caption" color={colors.limeSoft}>
+                  Remote monitoring is on
+                  {monitorKeyDraft.trim()
+                    ? ' — tap Enable again after pasting a replacement key'
+                    : ''}
+                </AppText>
+              ) : null}
+              {remoteEnabled && monitorKeyDraft.trim() ? (
+                <AppButton
+                  title={alertsBusy ? 'Saving…' : 'Save new monitor key'}
+                  variant="ghost"
+                  disabled={alertsBusy}
+                  onPress={() => void onEnableRemote()}
+                />
+              ) : null}
+            </>
+          )}
+        </View>
+      </Panel>
+
       {realIsAdminAccount ? (
         <Panel
           style={{
@@ -222,7 +443,8 @@ export default function SettingsScreen() {
       <Panel style={{ gap: spacing.md }}>
         <AppText variant="title">Desk Monitor</AppText>
         <AppText variant="caption">
-          Full-screen live burn view for a second monitor, plus an iOS/iPad widget for your desk setup.
+          Full-screen live burn view for a second monitor, plus an iOS/iPad widget for your desk
+          setup.
         </AppText>
         <AppButton title="Open Desk Monitor" variant="ghost" onPress={() => router.push('/desk')} />
       </Panel>
@@ -289,8 +511,8 @@ export default function SettingsScreen() {
       <Panel style={{ gap: spacing.sm }}>
         <AppText variant="title">About Burnline</AppText>
         <AppText>
-          Mobile LLM API spend cockpit. Your API keys stay in the device keychain;
-          platform rankings are cached via Supabase for no-key browsing.
+          Mobile LLM API spend cockpit. Session keys stay in the device keychain. Pro users may
+          opt in to a separate encrypted monitor key for remote burn spike alerts.
         </AppText>
         <AppText variant="caption">Palette · Electric lime #39FF14 on #0B0E0D</AppText>
       </Panel>

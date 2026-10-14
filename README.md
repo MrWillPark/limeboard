@@ -2,7 +2,7 @@
 
 Mobile LLM API spend cockpit — live burn, runway, and model breakdown on an ultra-dark developer UI.
 
-Track credit balance, burn velocity, runway-to-zero, and model spend. Starts with OpenRouter; more providers coming. Keys live in the device keychain; V1 talks to providers directly with no Burnline backend for key data.
+Track credit balance, burn velocity, runway-to-zero, and model spend. Starts with OpenRouter; more providers coming. Session keys live in the device keychain. Pro users may opt in to an encrypted monitor key for remote burn-spike push when the app is closed.
 
 ## Stack
 
@@ -44,9 +44,13 @@ Config lives in `app.json` under the `expo-widgets` plugin (App Group `group.app
 
 Settings → **Open Desk Monitor** launches a fullscreen landscape view for a second monitor (web or tablet). It shows a large speedometer-style burn gauge plus balance, spend, and runway on the side.
 
+## Burn spike alerts
+
+- **Local (free):** in-cockpit banner + OS notifications while the app is open/backgrounded
+- **Remote (Pro):** Settings → Burn spike alerts → dedicated monitor key; GitHub Actions cron invokes `monitor-burn-spikes` every 5 minutes
+
 ## Roadmap
 
-- Velocity anomaly alerts
 - Model cost arbitrage suggestions
 - Live Activities
 - Additional LLM providers (Anthropic, OpenAI, …) via official APIs

@@ -10,14 +10,21 @@ import {
   JetBrainsMono_700Bold,
 } from '@expo-google-fonts/jetbrains-mono';
 import { useFonts } from 'expo-font';
-import { Stack, ThemeProvider } from 'expo-router';
+import { Stack, ThemeProvider, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import * as Notifications from 'expo-notifications';
 
 import { AuthGate } from '@/components/auth/auth-gate';
 import { LimeBoardDarkTheme, colors } from '@/constants/theme';
+import {
+  BURN_SPIKE_NOTIFICATION_TYPE,
+  configureNotificationHandler,
+} from '@/lib/notifications/local-spike';
 import { AppProviders } from '@/providers/app-providers';
+
+configureNotificationHandler();
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -51,6 +58,16 @@ export default function RootLayout() {
       SplashScreen.hideAsync().catch(() => {});
     }
   }, [loaded, error]);
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (data?.type === BURN_SPIKE_NOTIFICATION_TYPE) {
+        router.push('/(tabs)');
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   if (!loaded && !error) return null;
 

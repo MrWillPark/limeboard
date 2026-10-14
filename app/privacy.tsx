@@ -17,7 +17,7 @@ export default function PrivacyScreen() {
       >
         <Panel style={{ gap: spacing.md }}>
           <AppText variant="title">Privacy Policy</AppText>
-          <AppText variant="caption">Last updated: September 1, 2026</AppText>
+          <AppText variant="caption">Last updated: October 14, 2026</AppText>
           <AppText>
             Burnline (“we”) provides LLM API spend analytics. This policy explains what
             data we collect and how it is used.
@@ -28,9 +28,21 @@ export default function PrivacyScreen() {
             entitlement.
           </Section>
           <Section title="API keys">
-            API keys you paste into Burnline are stored only on your device (Secure Store /
-            keychain). They are sent directly to the provider (e.g. OpenRouter) to fetch your
-            usage data and are not uploaded to Burnline servers.
+            Session and management API keys you paste for day-to-day Cockpit use are stored
+            only on your device (Secure Store / keychain). They are sent directly to the
+            provider (e.g. OpenRouter) to fetch your usage data and are not uploaded to
+            Burnline servers for general sync.
+          </Section>
+          <Section title="Optional Pro burn-alert monitor key">
+            If you enable Pro remote burn spike alerts, you may upload a dedicated OpenRouter
+            monitor key. That key is encrypted on our servers and used only to sample burn
+            rate and send push notifications when velocity spikes abnormally. You can disable
+            remote monitoring or revoke the key in OpenRouter at any time. Disabling remote
+            alerts deletes the stored monitor key and related samples from our systems.
+          </Section>
+          <Section title="Push notification tokens">
+            When you grant notification permission, we may store an Expo push token so we can
+            deliver burn spike alerts to your device.
           </Section>
           <Section title="Platform rankings">
             Burnline caches public OpenRouter ecosystem rankings on our servers so signed-in
@@ -46,8 +58,8 @@ export default function PrivacyScreen() {
           </Section>
           <Section title="Deletion">
             You can delete your Burnline account in Settings → Delete account. This removes
-            your auth user from our systems. Manage or cancel App Store subscriptions
-            separately in your Apple ID settings.
+            your auth user, push tokens, and any Pro monitor-key alert data from our systems.
+            Manage or cancel App Store subscriptions separately in your Apple ID settings.
           </Section>
           <Section title="Contact">
             Questions: {LEGAL.supportEmail}

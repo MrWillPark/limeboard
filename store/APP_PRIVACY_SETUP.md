@@ -16,9 +16,9 @@ Then declare these data types (all **linked to the user**, **not used for tracki
 | **User ID** | App Functionality | Yes | No |
 | **Purchase History** | App Functionality | Yes | No |
 
-**Do not declare** OpenRouter API keys — they stay on-device and are sent only to OpenRouter, not LimeBoard servers.
+**Do not declare** day-to-day OpenRouter session keys — they stay on-device and are sent only to OpenRouter. Pro users who opt into remote burn alerts upload a dedicated monitor key (encrypted server-side); treat that as App Functionality if Apple asks about credentials stored on servers.
 
-**Third-party data collection:** RevenueCat (subscription verification), Supabase (auth). No ads or analytics SDKs.
+**Third-party data collection:** RevenueCat (subscription verification), Supabase (auth + optional alert tokens/monitor key ciphertext), Expo Push Service. No ads or analytics SDKs.
 
 ### ASC path
 

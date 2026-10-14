@@ -7,12 +7,13 @@ import {
   type AnomalyResult,
   type AnomalySample,
 } from '@/lib/alerts/velocity-anomaly';
+import { maybeNotifyLocalBurnSpike } from '@/lib/notifications/local-spike';
 
 const MAX_SAMPLES = 24;
 
 /**
- * Tracks burn-rate samples and surfaces velocity anomalies for in-app alerts.
- * Local-only for now — push/Live Activity can subscribe to `activeAlert`.
+ * Tracks burn-rate samples and surfaces velocity anomalies for in-app alerts
+ * and local OS notifications (when backgrounded).
  */
 export function useVelocityAnomaly(perSecond: number, enabled: boolean) {
   const historyRef = useRef<AnomalySample[]>([]);
@@ -30,6 +31,9 @@ export function useVelocityAnomaly(perSecond: number, enabled: boolean) {
     if (shouldFireAnomalyAlert(result, lastFiredAtRef.current, now)) {
       lastFiredAtRef.current = now;
       setActiveAlert(result);
+      if (result.reason) {
+        void maybeNotifyLocalBurnSpike(result.reason);
+      }
     }
   }, [perSecond, enabled]);
 

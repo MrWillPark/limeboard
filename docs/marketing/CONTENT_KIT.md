@@ -142,7 +142,7 @@ Burnline is for the glance between agent runs — balance, burn, runway, lock sc
 
 Use when someone asks about OpenRouter spend on mobile:
 
-> Burnline — mobile cockpit for OpenRouter burn + runway. Keys stay on-device. Platform Pulse works with no key. burnline.dev
+> Burnline — mobile cockpit for OpenRouter burn + runway. Session keys on-device; Pro remote spike alerts optional. Platform Pulse works with no key. burnline.dev
 
 Pitch (copy-paste):
 

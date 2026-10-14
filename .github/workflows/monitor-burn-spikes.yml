@@ -1,0 +1,27 @@
+name: Monitor burn spikes
+
+on:
+  schedule:
+    # Every 5 minutes — batch Edge Function, not per-user cron
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invoke monitor-burn-spikes
+        env:
+          SUPABASE_FUNCTIONS_URL: ${{ secrets.SUPABASE_FUNCTIONS_URL }}
+          MONITOR_CRON_SECRET: ${{ secrets.MONITOR_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_FUNCTIONS_URL:-}" ] || [ -z "${MONITOR_CRON_SECRET:-}" ]; then
+            echo "Missing SUPABASE_FUNCTIONS_URL or MONITOR_CRON_SECRET secrets; skipping."
+            exit 0
+          fi
+          curl -fsS -X POST \
+            "${SUPABASE_FUNCTIONS_URL}/monitor-burn-spikes" \
+            -H "Content-Type: application/json" \
+            -H "x-monitor-cron-secret: ${MONITOR_CRON_SECRET}" \
+            -d '{}'

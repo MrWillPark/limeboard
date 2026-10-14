@@ -13,6 +13,7 @@ import { env, isRevenueCatConfigured } from '@/lib/config/env';
 import { useSubscription } from '@/providers/subscription-provider';
 
 const PRO_FEATURES = [
+  'Runaway burn push when the app is closed',
   'Spend trend charts & top model breakdowns',
   'Full Explore filters and spend-by-model views',
   'Fleet keys tab with provisioned key analytics',
@@ -21,6 +22,7 @@ const PRO_FEATURES = [
 
 const FREE_FEATURES = [
   'Live burn speedometer & runway-to-zero',
+  'Local burn spike notifications',
   'Account balance + Desk Monitor',
   'Platform Pulse (no key required)',
   'Home Screen widgets',

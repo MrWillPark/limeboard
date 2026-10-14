@@ -26,7 +26,7 @@ Own **“AI credit runway”** — the mobile LLM spend cockpit for OpenRouter.
 
 ### Statement
 
-> For indie AI builders and agent operators who need to know how fast OpenRouter credits are dying, Burnline is the **mobile LLM spend cockpit** that turns balance into burn velocity and days-to-zero — on phone, lock screen, and second display. Unlike web dashboards and balance-only trackers, Burnline puts a live speedometer, runway, and Desk Monitor in your pocket — keys stay on-device.
+> For indie AI builders and agent operators who need to know how fast OpenRouter credits are dying, Burnline is the **mobile LLM spend cockpit** that turns balance into burn velocity and days-to-zero — on phone, lock screen, and second display. Unlike web dashboards and balance-only trackers, Burnline puts a live speedometer, runway, and Desk Monitor in your pocket — session keys stay on-device (optional Pro alert key for remote spike push).
 
 **Internal shorthand:** Burnline = OpenRouter spend awareness you can glance at, not analyze at.
 
@@ -254,7 +254,8 @@ Ready posts: `docs/marketing/CONTENT_KIT.md` (A/B/C).
 | Free underpowered messaging | Free burn/runway framing + paywall Free forever list | Done |
 | Desk buried | Cockpit Desk CTA + checklist step | Done |
 | Key path vague | Session vs Management copy on connect | Done |
-| No “something’s wrong” | In-cockpit velocity anomaly alert | Done (local) |
+| No “something’s wrong” | In-cockpit + local OS push for velocity spikes | Done (local push) |
+| No alert when app closed | Pro opt-in monitor key + GHA batch worker | Done (remote Pro) |
 | No glance while locked | Live Activity API stub (`lib/live-activity/`) | Spike only — needs native extension |
 | Onboarding aha | Connect → runway → Desk checklist | Done |
 
@@ -271,7 +272,7 @@ Install → Auth → Platform Pulse (no key)
 
 ### Anti-roadmap (next 6 months)
 
-Do **not** build: multi-provider, infra/cloud bill burn, watchOS, model arbitrage engine, team/org dashboards, Android parity push, custom key backend, lifetime unlock to “beat Tracker,” heavy Explore chart expansion.
+Do **not** build: multi-provider, infra/cloud bill burn, watchOS, model arbitrage engine, team/org dashboards, Android parity push, general key sync backend (Pro alert monitor key only), lifetime unlock to “beat Tracker,” heavy Explore chart expansion.
 
 **Filter:** If it doesn’t help a solo builder glance burn during an agent run, it waits.
 

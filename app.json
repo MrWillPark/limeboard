@@ -13,9 +13,12 @@
       "appleTeamId": "UZLYMT5D28",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
-      "buildNumber": "25"
+      "buildNumber": "26"
     },
     "android": {
       "adaptiveIcon": {
@@ -37,6 +40,15 @@
       "expo-secure-store",
       "expo-sqlite",
       "expo-apple-authentication",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#39FF14",
+          "sounds": [],
+          "mode": "production"
+        }
+      ],
       [
         "expo-build-properties",
         {
